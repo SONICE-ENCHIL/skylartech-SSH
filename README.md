@@ -1,23 +1,18 @@
 <div align="center">
-  <img src="https://img.shields.io/badge/FirewallFalcon-Manager-blue?style=for-the-badge&logo=shield" alt="FirewallFalcon" />
-  <h1>🦅 FirewallFalcon Manager v4.0.0</h1>
+  <img src="https://img.shields.io/badge/SkylarTech-Inno-blue?style=for-the-badge&logo=shield" alt="SkylarTech" />
+  <h1>🦅 SkylarTech-Inno | Premium Edition V1.0.0</h1>
   <p><b>The ultimate, lightning-fast, and beautiful terminal UI manager for VPN tunneling, protocol deployments, and advanced user administration on Linux servers.</b></p>
   
-  <a href="https://codeberg.org/firewallfalcons/FirewallFalcon-Manager/releases">
-    <img src="https://img.shields.io/gitea/v/release/firewallfalcons/FirewallFalcon-Manager?server=https%3A%2F%2Fcodeberg.org&style=flat-square&color=success" alt="Latest Release">
-  </a>
   <img src="https://img.shields.io/badge/platform-linux-lightgrey?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/bash-%3E%3D4.0-yellow?style=flat-square&logo=gnu-bash" alt="Bash">
-  <a href="https://t.me/firewallfalcons">
-    <img src="https://img.shields.io/badge/Telegram-Channel-blue?style=flat-square&logo=telegram" alt="Telegram">
-  </a>
+  <img src="https://img.shields.io/badge/version-Premium%20V1.0.0-success?style=flat-square" alt="Version">
 </div>
 
 ---
 
-## ✨ Why FirewallFalcon Manager?
+## ✨ Why SkylarTech-Inno?
 
-FirewallFalcon Manager is built with an **obsessive focus on speed, fluidity, and aesthetics**. We took the traditional chunky script and refined it into a gorgeous, highly responsive, and relentlessly efficient terminal experience.
+SkylarTech-Inno is built with an **obsessive focus on speed, fluidity, and aesthetics**. We took the traditional chunky script and refined it into a gorgeous, highly responsive, and relentlessly efficient terminal experience.
 
 Whether you're managing 5 users or 500, deploying complex protocols, or locking down your server traffic—you can do it all in seconds, with zero frustration.
 
@@ -25,11 +20,11 @@ Whether you're managing 5 users or 500, deploying complex protocols, or locking 
 
 ## 🚀 Installation
 
-It takes less than a minute to deploy the complete FirewallFalcon Manager on your fresh VPS. Choose the installation method that works best for you:
+It takes less than a minute to deploy the complete SkylarTech-Inno Manager on your fresh VPS.
 
 ### Primary Method (Recommended)
 ```bash
-bash <(curl -Ls https://codeberg.org/firewallfalcons/FirewallFalcon-Manager/raw/branch/main/install.sh)
+bash <(curl -Ls https://github.com/SONICE-ENCHIL/skylartech-SSH/raw/main/install.sh)
 ```
 
 *(Once installed, simply type `menu` in your terminal to launch the interface!)*
@@ -48,7 +43,7 @@ bash <(curl -Ls https://codeberg.org/firewallfalcons/FirewallFalcon-Manager/raw/
 Easily spin up entire tunneling infrastructures onto your server without touching a single complex config file.
 * **BadVPN (UDP Gateway):** Optimize gaming and tunneling packets.
 * **UDP Custom:** Manage customizable UDP bypasses.
-* **SSL Tunnels:** HAProxy payload routing on port 444.
+* **SSL Tunnels:** HAProxy payload routing on port 443/80.
 * **Nginx Reverse Proxy:** Full HTTP/HTTPS webserver installer, featuring **Auto-Certbot integration** for free SSL certificates.
 * **DNSTT (SlowDNS):** Bypass heavy firewalls through port 53 DNS records.
 * **Falcon Proxy:** Setup and customize version-controlled Websocket/Socks proxies.
@@ -59,10 +54,11 @@ Easily spin up entire tunneling infrastructures onto your server without touchin
 * **Strict Bandwidth Limiting:** Assign gigabyte allowances (e.g., 50GB) upon creation. Background services will safely and automatically lock users who exceed their usage.
 * **Active Connection Limits:** Ensure nobody shares their account by enforcing strict concurrent session limits. 
 * **Live Traffic Monitor:** Check high-speed Bash network tracking (or install `vnstat` for persistent metrics).
-* **Anti-Torrent Guard:** Deploy stateful iptables payload inspection to permanently drop `BitTorrent` data, protecting your host from abuse complaints.
+* **Content Filtering:** Block torrent traffic and adult content with iptables string matching — no extra dependencies.
+* **Custom Blocklists:** Add your own domains and keywords to the content filter with a simple config file.
 
 ### 🎨 Beautiful SSH Customization
-* **Dynamic Login Banners:** FirewallFalcon overrides the default SSH `sshd_config` to inject an intelligent script. 
+* **Dynamic Login Banners:** Overrides the default SSH `sshd_config` to inject an intelligent script. 
 * When your users connect via an HTTP injector or SSH tunnel app, they are greeted by a beautiful customized text box detailing their exact:
   * Expiry Date
   * Quota Remaining
@@ -73,17 +69,34 @@ Easily spin up entire tunneling infrastructures onto your server without touchin
 
 ---
 
+## 🖥️ Preview
+
+```
+          SkylarTech-Inno | Premium Edition V1.0.0
+   ─────────────────────────────────────────────────────────
+   ◦ OS     Ubuntu 22.04           ◦ IP     203.0.113.42
+   ◦ BASE   Debian                 ◦ UPTIME 10 days, 2h
+   ◦ CPU'S  2                      ◦ DOMAIN vpn.example.com
+   ◦ USERS  30 Managed             ◦ LOAD   0.21
+   ─────────────────────────────────────────────────────────
+              🔧 ACTIVE SERVICES
+   ─────────────────────────────────────────────────────────
+   ◦ SSH:            22            ◦ SSL (HAProxy): 80, 443
+   ◦ ZiVPN:          5667          ◦ UDP-Custom:   36712
+   ◦ BadVPN:         7300          ◦ DNSTT:        53
+   ─────────────────────────────────────────────────────────
+```
+
+---
+
 ## 💬 Community & Support
 
-* **Telegram Channel:** [t.me/firewallfalcons](https://t.me/firewallfalcons) - Join for updates and support!
-* **Donations:** If you find this project useful and want to support its development, you can contribute via:
-    * **PayPal:** [paypal.me/00xmahmoud](https://paypal.me/00xmahmoud)
-    * **Binance ID:** `885652061`
-    * **USDT (TRC20):** `TM2AfVAWQJiuriGC6KoTmsAJuUTTBd2f1R`
+* Maintained by **SkylarTech (SONICE-ENCHIL)**
+* For issues, suggestions, or contributions — open an issue on GitHub.
 
 ---
 
 <div align="center">
-  <b>Built by FirewallFalcons</b><br>
+  <b>Built by SkylarTech</b><br>
   <i>"Fast configuration, Secure tunneling, Beautiful interfaces."</i>
 </div>
