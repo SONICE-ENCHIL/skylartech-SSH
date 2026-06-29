@@ -754,6 +754,10 @@ initial_setup() {
     disable_dynamic_ssh_banner_system
     systemctl reload sshd 2>/dev/null || systemctl reload ssh 2>/dev/null || true
     
+    echo -e "${C_BLUE}🔹 Installing iptables-persistent for reboot survival...${C_RESET}"
+    ff_pkg_install iptables-persistent >/dev/null 2>&1 || true
+    systemctl enable netfilter-persistent 2>/dev/null || true
+    
     echo -e "${C_BLUE}🔹 Applying NAT port forwarding defaults...${C_RESET}"
     apply_default_nat_rules
     
