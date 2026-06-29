@@ -5150,14 +5150,14 @@ show_banner() {
     [[ -t 1 ]] && clear
     echo
     echo -e "${C_TITLE}          SkylarTech-Inno ${C_RESET}${C_DIM}| Premium Edition V1.0.0         ${C_RESET}"
-    echo -e "${C_BLUE}   ─────────────────────────────────────────────────────────${C_RESET}"
-    printf "   ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%-19s${C_RESET} ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%s${C_RESET}\n" "OS" "$BANNER_CACHE_OS_NAME" "IP" "$BANNER_CACHE_IP"
-    printf "   ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%-19s${C_RESET} ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%s${C_RESET}\n" "BASE" "$BANNER_CACHE_BASE" "UPTIME" "$BANNER_CACHE_UP_TIME"
-    printf "   ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%-19s${C_RESET} ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%s${C_RESET}\n" "CPU'S" "$BANNER_CACHE_CPU_COUNT" "DOMAIN" "$BANNER_CACHE_DOMAIN"
-    printf "   ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%-19s${C_RESET} ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%s${C_RESET}\n" "USERS" "$BANNER_CACHE_TOTAL_USERS Managed" "LOAD" "$BANNER_CACHE_CPU_LOAD"
-    echo -e "${C_BLUE}   ─────────────────────────────────────────────────────────${C_RESET}"
-    echo -e "   ${C_TITLE}              🔧 ACTIVE SERVICES              ${C_RESET}"
-    echo -e "${C_BLUE}   ─────────────────────────────────────────────────────────${C_RESET}"
+    echo -e "${C_BLUE}   ─────────────────────────────────────────────────────${C_RESET}"
+    printf "   ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%-19s${C_RESET} ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%s${C_RESET}\n" "Base" "$BANNER_CACHE_BASE" "Load" "$BANNER_CACHE_CPU_LOAD"
+    printf "   ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%-19s${C_RESET} ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%s${C_RESET}\n" "CPU'S" "$BANNER_CACHE_CPU_COUNT" "Domain" "$BANNER_CACHE_DOMAIN"
+    printf "   ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%-19s${C_RESET} ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%s${C_RESET}\n" "Users" "$BANNER_CACHE_TOTAL_USERS Managed" "UpTime" "$BANNER_CACHE_UP_TIME"
+    printf "   ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%-19s${C_RESET} ${C_GRAY}◦ %-6s${C_RESET} ${C_GREEN}%s${C_RESET}\n" "IP" "$BANNER_CACHE_IP" "OS" "$BANNER_CACHE_OS_NAME"
+    echo -e "${C_BLUE}   ·····················································${C_RESET}"
+    echo -e "   ${C_GRAY}·${C_RESET}${C_TITLE}              🔧 ACTIVE SERVICES               ${C_RESET}${C_GRAY}·${C_RESET}"
+    echo -e "${C_BLUE}   ·····················································${C_RESET}"
 
     local -a svc_lbl=() svc_val=()
     svc_lbl+=("SSH:"); svc_val+=("22")
@@ -5190,12 +5190,12 @@ show_banner() {
     local i total=${#svc_lbl[@]}
     for ((i=0; i<total; i+=2)); do
         if (( i+1 < total )); then
-            printf "   ${C_GRAY}◦ %-15s${C_RESET} ${C_ORANGE}%-12s${C_RESET} ${C_GRAY}◦ %-15s${C_RESET} ${C_ORANGE}%s${C_RESET}\n" "${svc_lbl[i]}" "${svc_val[i]}" "${svc_lbl[i+1]}" "${svc_val[i+1]}"
+            printf "   ${C_GRAY}·  ◦ %-12s${C_RESET} ${C_ORANGE}%-7s${C_RESET}  ${C_GRAY}◦ %-12s${C_RESET} ${C_ORANGE}%s${C_RESET}  ${C_GRAY}·${C_RESET}\n" "${svc_lbl[i]}" "${svc_val[i]}" "${svc_lbl[i+1]}" "${svc_val[i+1]}"
         else
-            printf "   ${C_GRAY}◦ %-15s${C_RESET} ${C_ORANGE}%s${C_RESET}\n" "${svc_lbl[i]}" "${svc_val[i]}"
+            printf "   ${C_GRAY}·  ◦ %-12s${C_RESET} ${C_ORANGE}%s${C_RESET}  ${C_GRAY}·${C_RESET}\n" "${svc_lbl[i]}" "${svc_val[i]}"
         fi
     done
-    echo -e "${C_BLUE}   ─────────────────────────────────────────────────────────${C_RESET}"
+    echo -e "${C_BLUE}   ·····················································${C_RESET}"
 }
 
 protocol_menu() {
