@@ -6626,17 +6626,27 @@ nat_forward_menu() {
             3)
                 _nat_load_rules
                 echo -e "\n${C_DIM}Add a new DNAT forwarding rule.${C_RESET}"
-                read -p "👉 Protocol (tcp/udp) [tcp]: " proto
+                read -p "👉 Protocol (tcp/udp/both) [tcp]: " proto
                 proto=${proto:-tcp}
-                [[ "$proto" != "tcp" && "$proto" != "udp" ]] && proto="tcp"
+                case "$proto" in
+                    both) ;;
+                    tcp|udp) ;;
+                    *) proto="tcp" ;;
+                esac
                 read -p "👉 Port or range (e.g. 8080 or 8000:9000): " prange
                 [[ -z "$prange" ]] && echo -e "\n${C_RED}❌ Required.${C_RESET}"; sleep 1; continue
                 read -p "👉 Forward to port: " target
                 [[ -z "$target" || ! "$target" =~ ^[0-9]+$ ]] && echo -e "\n${C_RED}❌ Invalid port.${C_RESET}"; sleep 1; continue
-                NAT_DNAT+=("$proto:$prange:$target")
+                if [[ "$proto" == "both" ]]; then
+                    NAT_DNAT+=("tcp:$prange:$target")
+                    NAT_DNAT+=("udp:$prange:$target")
+                    echo -e "\n${C_GREEN}✅ DNAT rules added: tcp + udp $prange → $target${C_RESET}"
+                else
+                    NAT_DNAT+=("$proto:$prange:$target")
+                    echo -e "\n${C_GREEN}✅ DNAT rule added: $proto $prange → $target${C_RESET}"
+                fi
                 _nat_save_rules
                 _nat_apply
-                echo -e "\n${C_GREEN}✅ DNAT rule added: $proto $prange → $target${C_RESET}"
                 press_enter
                 ;;
             4)
@@ -6662,13 +6672,18 @@ nat_forward_menu() {
                 IFS=: read -r oprot olow ohigh otarget <<< "$old"
                 local orange="${olow}:${ohigh}"
                 echo -e "\n${C_DIM}Editing: $oprot $orange → $otarget${C_RESET}"
-                read -p "👉 Protocol (tcp/udp) [$oprot]: " nproto
+                read -p "👉 Protocol (tcp/udp/both) [$oprot]: " nproto
                 nproto=${nproto:-$oprot}
                 read -p "👉 Port or range [$orange]: " nrange
                 nrange=${nrange:-$orange}
                 read -p "👉 Forward to port [$otarget]: " ntarget
                 ntarget=${ntarget:-$otarget}
-                NAT_DNAT[$((idx-1))]="$nproto:$nrange:$ntarget"
+                if [[ "$nproto" == "both" ]]; then
+                    NAT_DNAT[$((idx-1))]="tcp:$nrange:$ntarget"
+                    NAT_DNAT+=("udp:$nrange:$ntarget")
+                else
+                    NAT_DNAT[$((idx-1))]="$nproto:$nrange:$ntarget"
+                fi
                 _nat_save_rules
                 _nat_apply
                 echo -e "\n${C_GREEN}✅ DNAT rule updated.${C_RESET}"
@@ -6722,7 +6737,7 @@ nat_forward_menu() {
                 press_enter
                 ;;
             6)
-                echo -e "\n${C_YELLOW}⚠️ This will reset to the 8 RETURN + 4 DNAT defaults and wipe custom rules.${C_RESET}"
+                echo -e "\n${C_YELLOW}⚠️ This will reset to the 8 RETURN + 3 DNAT defaults and wipe custom rules.${C_RESET}"
                 read -p "👉 Type 'yes' to confirm: " confirm
                 if [[ "$confirm" != "yes" ]]; then
                     echo -e "\n${C_GREEN}Cancelled.${C_RESET}"; sleep 1; continue
