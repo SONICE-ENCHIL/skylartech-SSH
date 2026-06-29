@@ -5211,7 +5211,15 @@ refresh_banner_cache() {
         BANNER_CACHE_IP=$(curl -s -4 --max-time 3 icanhazip.com 2>/dev/null || echo "unknown")
     fi
     if [[ -z "$BANNER_CACHE_BASE" ]]; then
-        BANNER_CACHE_BASE=$(grep -oP 'ID_LIKE="\K[^"]+' /etc/os-release 2>/dev/null || grep -oP 'ID="\K[^"]+' /etc/os-release 2>/dev/null || echo "Linux")
+        local arch
+        arch=$(uname -m 2>/dev/null || echo "unknown")
+        case "$arch" in
+            x86_64)  BANNER_CACHE_BASE="x64" ;;
+            aarch64) BANNER_CACHE_BASE="ARM64" ;;
+            armv7l)  BANNER_CACHE_BASE="ARM32" ;;
+            i686|i386) BANNER_CACHE_BASE="x86" ;;
+            *)       BANNER_CACHE_BASE="$arch" ;;
+        esac
     fi
     BANNER_CACHE_CPU_COUNT=$(nproc 2>/dev/null || echo "1")
     if [[ -z "$BANNER_CACHE_DOMAIN" ]]; then
