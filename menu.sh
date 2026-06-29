@@ -6762,6 +6762,49 @@ invalid_option() {
     echo -e "\n${C_RED}❌ Invalid option.${C_RESET}" && sleep 1
 }
 
+# Resync all ZiVPN passwords from the local DB into /etc/zivpn/config.json.
+# Useful as a one-click repair after the old unlock bug left some accounts
+# without a password in the auth list.
+zivpn_resync_passwords() {
+    clear; show_banner
+    if [[ ! -f "$ZIVPN_CONFIG_FILE" ]]; then
+        echo -e "${C_YELLOW}⚠️ ZiVPN config ($ZIVPN_CONFIG_FILE) not found — is ZiVPN installed?${C_RESET}"
+        return
+    fi
+    if ! command -v jq &>/dev/null; then
+        echo -e "${C_YELLOW}⚠️ 'jq' is required but not installed. Install it and try again.${C_RESET}"
+        return
+    fi
+    local added=0 skipped=0 missing=0 tmp
+    while IFS=: read -r _user _pass _rest; do
+        [[ -n "$_user" && -n "$_pass" ]] || { ((missing++)); continue; }
+        if jq -e --arg p "$_pass" '.auth.config | index($p) != null' "$ZIVPN_CONFIG_FILE" &>/dev/null; then
+            ((skipped++))
+            continue
+        fi
+        tmp=$(mktemp) || { ((missing++)); continue; }
+        if jq --arg p "$_pass" '.auth.config += [$p]' "$ZIVPN_CONFIG_FILE" > "$tmp" 2>/dev/null; then
+            mv "$tmp" "$ZIVPN_CONFIG_FILE"
+            ((added++))
+        else
+            rm -f "$tmp" 2>/dev/null
+            ((missing++))
+        fi
+    done < <(awk -F: '$9 == "zivpn" { print $1, $2 }' "$DB_FILE" 2>/dev/null)
+
+    if [[ "$added" -gt 0 ]]; then
+        systemctl is-active --quiet zivpn 2>/dev/null && systemctl try-restart zivpn.service 2>/dev/null
+    fi
+
+    echo
+    echo -e "${C_BOLD}--- 🔑 ZiVPN Password Resync ---${C_RESET}"
+    echo -e "  ${C_GREEN}✅ Added:      ${added}${C_RESET}"
+    echo -e "  ${C_BLUE}ℹ️  Skipped:    ${skipped} (already present)${C_RESET}"
+    if [[ "$missing" -gt 0 ]]; then
+        echo -e "  ${C_YELLOW}⚠️  Failed:     ${missing} (missing DB entry / jq error)${C_RESET}"
+    fi
+}
+
 main_menu() {
     while true; do
         export UNINSTALL_MODE="interactive"
@@ -6786,7 +6829,7 @@ main_menu() {
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-28s\033[40G${C_CHOICE}[%2s]${C_RESET}\033[45G%-28s\033[K\n" "14" "🔞 Content Filter" "15" "🎨 SSH Banner"
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-28s\033[40G${C_CHOICE}[%2s]${C_RESET}\033[45G%-28s\033[K\n" "16" "🔄 Auto-Reboot Task" "17" "🌐 Set Domain"
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-28s\033[40G${C_CHOICE}[%2s]${C_RESET}\033[45G%-28s\033[K\n" "19" "📥 Restore Users" "20" "🧹 Cleanup Expired"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-28s\033[40G${C_CHOICE}[%2s]${C_RESET}\033[45G%-28s\033[K\n" "21" "🔥 NAT Forwarding" "" ""
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-28s\033[40G${C_CHOICE}[%2s]${C_RESET}\033[45G%-28s\033[K\n" "21" "🔥 NAT Forwarding" "22" "🔄 ZiVPN Resync"
 
         echo
         echo -e "   ${C_DANGER}─────────────────────────────────────────────────────${C_RESET}"
@@ -6822,6 +6865,7 @@ main_menu() {
             19) restore_user_data; press_enter ;;
             20) cleanup_expired; press_enter ;;
             21) nat_forward_menu ;;
+            22) zivpn_resync_passwords; press_enter ;;
             
             99) uninstall_script ;;
             0) exit 0 ;;
