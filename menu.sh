@@ -5121,6 +5121,18 @@ refresh_banner_cache() {
         BANNER_CACHE_OS_NAME=$(grep -oP 'PRETTY_NAME="\K[^"]+' /etc/os-release 2>/dev/null || echo "Linux")
     fi
     BANNER_CACHE_UP_TIME=$(uptime -p 2>/dev/null | sed 's/up //' || echo "unknown")
+    local w=0 d=0 h=0 m=0
+    if [[ "$BANNER_CACHE_UP_TIME" =~ ([0-9]+)[[:space:]]*week ]]; then w=${BASH_REMATCH[1]}; fi
+    if [[ "$BANNER_CACHE_UP_TIME" =~ ([0-9]+)[[:space:]]*day ]]; then d=${BASH_REMATCH[1]}; fi
+    if [[ "$BANNER_CACHE_UP_TIME" =~ ([0-9]+)[[:space:]]*hour ]]; then h=${BASH_REMATCH[1]}; fi
+    if [[ "$BANNER_CACHE_UP_TIME" =~ ([0-9]+)[[:space:]]*minute ]]; then m=${BASH_REMATCH[1]}; fi
+    local parts=()
+    ((w)) && parts+=("($w)wks")
+    ((d)) && parts+=("($d)days")
+    ((h)) && parts+=("($h)hr")
+    ((m)) && parts+=("($m)min")
+    local IFS=,
+    BANNER_CACHE_UP_TIME="${parts[*]}"
     BANNER_CACHE_RAM_USAGE=$(free -m | awk '/^Mem:/{if($2>0){printf "%.2f", $3*100/$2}else{print "0.00"}}')
     BANNER_CACHE_CPU_LOAD=$(awk '{print $1}' /proc/loadavg 2>/dev/null)
     if [[ -z "$BANNER_CACHE_IP" ]]; then
