@@ -5244,7 +5244,7 @@ refresh_banner_cache() {
 
 show_banner() {
     refresh_banner_cache
-    [[ -t 1 ]] && clear
+    printf '\033[2J\033[H'
     echo
     echo -e "${C_TITLE}          Skylartech ${C_RESET}${C_DIM}| Premium Edition V1.0.0         ${C_RESET}"
     echo -e "${C_BLUE}   ─────────────────────────────────────────────────────${C_RESET}"
