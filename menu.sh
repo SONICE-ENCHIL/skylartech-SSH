@@ -991,6 +991,24 @@ ff_zivpn_unlock_user() {
     return 1
 }
 
+# Add a password to the ZiVPN auth list so a new/existing ZiVPN user can
+# authenticate.  Silently returns 0 when ZiVPN is not installed so callers
+# can invoke this unconditionally.
+# Usage: _ff_zivpn_add_pass <password>
+_ff_zivpn_add_pass() {
+    local pass="$1"
+    [[ -f "$ZIVPN_CONFIG_FILE" ]] || return 0
+    command -v jq &>/dev/null || return 0
+    jq -e --arg p "$pass" '.auth.config | index($p) != null' "$ZIVPN_CONFIG_FILE" &>/dev/null && return 0
+    local tmp; tmp=$(mktemp) || return 1
+    if jq --arg p "$pass" '.auth.config += [$p]' "$ZIVPN_CONFIG_FILE" > "$tmp" 2>/dev/null; then
+        mv "$tmp" "$ZIVPN_CONFIG_FILE"
+        return 0
+    fi
+    rm -f "$tmp" 2>/dev/null
+    return 1
+}
+
 # Bounce the UDP relays so a just-locked user's LIVE root-owned session dies at
 # once (the relays run as root, so UID drops and pkill can't reach them). Flush
 # conntrack first so kernel UDP/NAT state is gone the instant they come back; the
@@ -1945,6 +1963,10 @@ create_user() {
     echo "$username:$password:$expire_date:$limit:$bandwidth_gb::$hwid:$strict:$app" >> "$DB_FILE"
     hwid_sync_allowed_db
 
+    if [[ "$app" == "zivpn" ]] && _ff_zivpn_add_pass "$password"; then
+        systemctl is-active --quiet zivpn 2>/dev/null && systemctl try-restart zivpn.service 2>/dev/null
+    fi
+
     local bw_display="Unlimited"
     if [[ "$bandwidth_gb" != "0" ]]; then bw_display="${bandwidth_gb} GB"; fi
 
@@ -2120,11 +2142,14 @@ edit_user() {
                    new_pass=$(tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 8)
                    echo -e "${C_GREEN}🔑 Auto-generated: ${C_YELLOW}$new_pass${C_RESET}"
                fi
-               echo "$username:$new_pass" | chpasswd
-               db_set_user "$username" "$new_pass" "$cur_expiry" "$cur_limit" "$cur_bw" "$cur_marker" "$cur_hwid" "$cur_strict" "$cur_app"
-                # Password is part of the enforcer's identity match for ZiVPN, so resync.
-               hwid_sync_allowed_db
-               echo -e "\n${C_GREEN}✅ Password for '$username' changed to: ${C_YELLOW}$new_pass${C_RESET}"
+                echo "$username:$new_pass" | chpasswd
+                db_set_user "$username" "$new_pass" "$cur_expiry" "$cur_limit" "$cur_bw" "$cur_marker" "$cur_hwid" "$cur_strict" "$cur_app"
+                 # Password is part of the enforcer's identity match for ZiVPN, so resync.
+                hwid_sync_allowed_db
+                if [[ "$cur_app" == "zivpn" ]] && _ff_zivpn_add_pass "$new_pass"; then
+                    systemctl is-active --quiet zivpn 2>/dev/null && systemctl try-restart zivpn.service 2>/dev/null
+                fi
+                echo -e "\n${C_GREEN}✅ Password for '$username' changed to: ${C_YELLOW}$new_pass${C_RESET}"
                ;;
             2) read -p "Enter new duration (in days from today): " days
                if [[ "$days" =~ ^[0-9]+$ ]]; then
@@ -2324,7 +2349,20 @@ edit_user() {
                      2|z|Z|zivpn|ZiVPN) new_app="zivpn" ;;
                      *) new_app="http" ;;
                  esac
-                 db_set_user "$username" "$cur_pass" "$cur_expiry" "$cur_limit" "$cur_bw" "$cur_marker" "$cur_hwid" "$cur_strict" "$new_app"
+                  db_set_user "$username" "$cur_pass" "$cur_expiry" "$cur_limit" "$cur_bw" "$cur_marker" "$cur_hwid" "$cur_strict" "$new_app"
+                 # Sync ZiVPN auth list when app type changes.
+                 if [[ "$new_app" != "$cur_app" ]]; then
+                     if [[ "$new_app" == "zivpn" ]]; then
+                         _ff_zivpn_add_pass "$cur_pass"
+                     elif [[ "$cur_app" == "zivpn" && -f "$ZIVPN_CONFIG_FILE" ]] && command -v jq &>/dev/null; then
+                         local tmp; tmp=$(mktemp) 2>/dev/null || true
+                         if [[ -n "$tmp" ]]; then
+                             jq --arg p "$cur_pass" '.auth.config |= map(select(. != $p))' "$ZIVPN_CONFIG_FILE" > "$tmp" 2>/dev/null && mv "$tmp" "$ZIVPN_CONFIG_FILE"
+                             rm -f "$tmp" 2>/dev/null
+                         fi
+                     fi
+                     systemctl is-active --quiet zivpn 2>/dev/null && systemctl try-restart zivpn.service 2>/dev/null
+                 fi
                  cur_app="$new_app"
                  echo -e "\n${C_GREEN}✅ Target app for '$username' changed to ${C_YELLOW}$new_app${C_RESET}"
                  ;;
@@ -2880,6 +2918,21 @@ restore_user_data() {
         local bw_note="Unlimited"; [[ "$bandwidth_gb" != "0" ]] && bw_note="${bandwidth_gb} GB"
         echo " - Connection limit ${limit:-1}, bandwidth ${bw_note} (enforced by the limiter service)"
     done < "$DB_FILE"
+
+    # Sync all ZiVPN-app user passwords into the ZiVPN auth list.
+    if [[ -f "$ZIVPN_CONFIG_FILE" ]] && command -v jq &>/dev/null; then
+        local zivpn_reloaded=false
+        while IFS=: read -r user pass _ _ _ _ _ _ app; do
+            [[ -z "$user" || "$user" == \#* ]] && continue
+            if [[ "$app" == "zivpn" ]] && _ff_zivpn_add_pass "$pass"; then
+                zivpn_reloaded=true
+            fi
+        done < "$DB_FILE"
+        if [[ "$zivpn_reloaded" == true ]]; then
+            systemctl is-active --quiet zivpn 2>/dev/null && systemctl try-restart zivpn.service 2>/dev/null
+        fi
+    fi
+
     rm -rf "$temp_dir"
     # Rebuild the HWID mirror from the restored database.
     hwid_sync_allowed_db
@@ -5530,6 +5583,10 @@ create_trial_account() {
     chage -E "$expire_date" "$username"
     echo "$username:$password:$expire_date:$limit:$bandwidth_gb:trial::0:$app" >> "$DB_FILE"
 
+    if [[ "$app" == "zivpn" ]] && _ff_zivpn_add_pass "$password"; then
+        systemctl is-active --quiet zivpn 2>/dev/null && systemctl try-restart zivpn.service 2>/dev/null
+    fi
+
     # Record the precise expiry epoch so the limiter can enforce sub-day
     # trials even if the 'at' job is lost (reboot, atd restart, etc.).
     mkdir -p "$TRIAL_EXPIRY_DIR"
@@ -5683,9 +5740,16 @@ bulk_create_users() {
         echo "$username:$password" | chpasswd
         chage -E "$expire_date" "$username"
         echo "$username:$password:$expire_date:$limit:$bandwidth_gb:::0:$app" >> "$DB_FILE"
+        if [[ "$app" == "zivpn" ]]; then
+            _ff_zivpn_add_pass "$password"
+        fi
         printf "  ${C_GREEN}%-20s${C_RESET} | ${C_YELLOW}%-15s${C_RESET} | ${C_CYAN}%-12s${C_RESET}\n" "$username" "$password" "$expire_date"
         created=$((created + 1))
     done
+
+    if [[ "$app" == "zivpn" ]]; then
+        systemctl is-active --quiet zivpn 2>/dev/null && systemctl try-restart zivpn.service 2>/dev/null
+    fi
 
     echo -e "${C_YELLOW}================================================================${C_RESET}"
     echo -e "\n${C_GREEN}✅ Created $created users. Conn Limit: ${limit} | BW: ${bw_display}${C_RESET}"
