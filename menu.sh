@@ -754,6 +754,9 @@ initial_setup() {
     disable_dynamic_ssh_banner_system
     systemctl reload sshd 2>/dev/null || systemctl reload ssh 2>/dev/null || true
     
+    echo -e "${C_BLUE}🔹 Applying NAT port forwarding defaults...${C_RESET}"
+    apply_default_nat_rules
+    
     if [ ! -f "$INSTALL_FLAG_FILE" ]; then
         touch "$INSTALL_FLAG_FILE"
     fi
@@ -6301,6 +6304,321 @@ auto_reboot_menu() {
 }
 
 
+# ── NAT Port Forwarding ─────────────────────────────────────────────
+
+NAT_RULES_CONF="$DB_DIR/nat_rules.conf"
+
+_nat_default_rules() {
+    cat <<'RULES'
+# RETURN (TCP ports that bypass DNAT)
+RETURN=22
+RETURN=22741
+RETURN=8888
+RETURN=888
+RETURN=80
+RETURN=443
+RETURN=887
+RETURN=49222
+# DNAT rules  (format: proto:port_or_range:target_port)
+DNAT=tcp:1:65535:36712
+DNAT=udp:6000:19999:5667
+DNAT=udp:1:5999:36712
+DNAT=udp:20000:65535:36712
+RULES
+}
+
+_nat_load_rules() {
+    if [[ ! -f "$NAT_RULES_CONF" ]]; then
+        _nat_default_rules > "$NAT_RULES_CONF"
+    fi
+    mapfile -t NAT_RETURN < <(grep '^RETURN=' "$NAT_RULES_CONF" | cut -d= -f2)
+    mapfile -t NAT_DNAT < <(grep '^DNAT=' "$NAT_RULES_CONF" | cut -d= -f2)
+}
+
+_nat_save_rules() {
+    {
+        for port in "${NAT_RETURN[@]}"; do echo "RETURN=$port"; done
+        for rule in "${NAT_DNAT[@]}"; do echo "DNAT=$rule"; done
+    } > "$NAT_RULES_CONF"
+}
+
+_nat_get_iface() {
+    ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1
+}
+
+_nat_apply() {
+    local iface
+    iface=$(_nat_get_iface)
+    [[ -z "$iface" ]] && iface="eth0"
+
+    # Flush NAT PREROUTING chain
+    iptables -t nat -F PREROUTING
+
+    # Apply RETURN rules
+    local port
+    for port in "${NAT_RETURN[@]}"; do
+        iptables -t nat -A PREROUTING -i "$iface" -p tcp --dport "$port" -j RETURN 2>/dev/null || true
+    done
+
+    # Apply DNAT rules
+    local rule proto prange target
+    for rule in "${NAT_DNAT[@]}"; do
+        IFS=: read -r proto prange target <<< "$rule"
+        iptables -t nat -A PREROUTING -i "$iface" -p "$proto" --dport "$prange" -j DNAT --to-destination ":${target}" 2>/dev/null || true
+    done
+
+    _filter_iptables_save
+}
+
+_nat_preview_commands() {
+    local iface
+    iface=$(_nat_get_iface)
+    [[ -z "$iface" ]] && iface="eth0"
+
+    echo -e "\n${C_YELLOW}  # Flush existing NAT PREROUTING${C_RESET}"
+    echo "  iptables -t nat -F PREROUTING"
+    echo
+    if [[ ${#NAT_RETURN[@]} -gt 0 ]]; then
+        echo -e "  ${C_YELLOW}# RETURN rules (ports bypassing DNAT)${C_RESET}"
+        for port in "${NAT_RETURN[@]}"; do
+            echo "  iptables -t nat -A PREROUTING -i $iface -p tcp --dport $port -j RETURN"
+        done
+        echo
+    fi
+    echo -e "  ${C_YELLOW}# DNAT rules${C_RESET}"
+    local rule proto prange target
+    for rule in "${NAT_DNAT[@]}"; do
+        IFS=: read -r proto prange target <<< "$rule"
+        echo "  iptables -t nat -A PREROUTING -i $iface -p $proto --dport $prange -j DNAT --to-destination :${target}"
+    done
+}
+
+_nat_show_rules() {
+    _nat_load_rules
+    local i
+
+    if [[ ${#NAT_RETURN[@]} -gt 0 ]]; then
+        echo -e "\n  ${C_ACCENT}===== RETURN (skip DNAT — TCP only) =====${C_RESET}"
+        for i in "${!NAT_RETURN[@]}"; do
+            printf "  ${C_CHOICE}[R%2s]${C_RESET}  %-4s  %-17s  →  %s\n" "$((i+1))" "TCP" "${NAT_RETURN[$i]}" "RETURN"
+        done
+    fi
+
+    if [[ ${#NAT_DNAT[@]} -gt 0 ]]; then
+        echo -e "\n  ${C_ACCENT}===== DNAT (port forwarding) =====${C_RESET}"
+        for i in "${!NAT_DNAT[@]}"; do
+            local rule="${NAT_DNAT[$i]}"
+            local proto prange target label
+            IFS=: read -r proto prange target <<< "$rule"
+            label=""
+            [[ "$target" == "5667" ]] && label="  (ZiVPN)"
+            printf "  ${C_CHOICE}[D%2s]${C_RESET}  %-4s  %-17s  →  %-5s%s\n" "$((i+1))" "${proto^^}" "$prange" "$target" "$label"
+        done
+    fi
+}
+
+apply_default_nat_rules() {
+    echo -e "${C_BLUE}🔥 Applying default NAT port forwarding rules...${C_RESET}"
+    _nat_default_rules > "$NAT_RULES_CONF"
+    _nat_load_rules
+    _nat_apply
+    echo -e "${C_GREEN}✅ Default NAT rules applied (8 RETURN + 4 DNAT).${C_RESET}"
+}
+
+nat_forward_menu() {
+    while true; do
+        clear; show_banner
+        echo -e "\n   ${C_TITLE}═════════════════[ ${C_BOLD}🔥 NAT PORT FORWARDING ${C_RESET}${C_TITLE}]═════════════════${C_RESET}"
+        echo -e "   ${C_DIM}Manage iptables PREROUTING DNAT + RETURN rules${C_RESET}"
+        _nat_show_rules
+
+        echo
+        echo -e "   ${C_BOLD}Actions:${C_RESET}\n"
+        printf "     ${C_CHOICE}[ 1]${C_RESET} %-35s\n" "➕ Add RETURN port (TCP)"
+        printf "     ${C_CHOICE}[ 2]${C_RESET} %-35s\n" "🗑️  Remove RETURN port"
+        printf "     ${C_CHOICE}[ 3]${C_RESET} %-35s\n" "➕ Add DNAT rule"
+        printf "     ${C_CHOICE}[ 4]${C_RESET} %-35s\n" "✏️  Edit DNAT rule"
+        printf "     ${C_CHOICE}[ 5]${C_RESET} %-35s\n" "🗑️  Delete rule"
+        printf "     ${C_CHOICE}[ 6]${C_RESET} %-35s\n" "🔄 Reset to defaults"
+        printf "     ${C_CHOICE}[ 7]${C_RESET} %-35s\n" "👁️  Preview & Apply All"
+        printf "     ${C_CHOICE}[ 8]${C_RESET} %-35s\n" "💾 Save (iptables-persistent)"
+        echo -e "   ${C_DIM}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~${C_RESET}"
+        echo -e "     ${C_WARN}[ 0]${C_RESET} ↩️ Return"
+        echo
+        read -r -p "$(echo -e ${C_PROMPT}"👉 Select an option: "${C_RESET})" choice
+
+        case $choice in
+            1)
+                _nat_load_rules
+                read -p "👉 Enter TCP port to exclude from DNAT: " port
+                if [[ -z "$port" || ! "$port" =~ ^[0-9]+$ ]]; then
+                    echo -e "\n${C_RED}❌ Invalid port.${C_RESET}"; sleep 1; continue
+                fi
+                if printf '%s\n' "${NAT_RETURN[@]}" | grep -qx "$port"; then
+                    echo -e "\n${C_YELLOW}⚠️ Port $port is already a RETURN exception.${C_RESET}"; sleep 1; continue
+                fi
+                NAT_RETURN+=("$port")
+                # Sort numerically
+                IFS=$'\n' NAT_RETURN=($(sort -n <<<"${NAT_RETURN[*]}")); unset IFS
+                _nat_save_rules
+                _nat_apply
+                echo -e "\n${C_GREEN}✅ Port $port added as RETURN exception.${C_RESET}"
+                press_enter
+                ;;
+            2)
+                _nat_load_rules
+                if [[ ${#NAT_RETURN[@]} -eq 0 ]]; then
+                    echo -e "\n${C_YELLOW}⚠️ No RETURN rules to remove.${C_RESET}"; sleep 1; continue
+                fi
+                echo -e "\n${C_BOLD}Select RETURN port to remove:${C_RESET}\n"
+                for i in "${!NAT_RETURN[@]}"; do
+                    printf "  ${C_CHOICE}[%2s]${C_RESET}  TCP  %s\n" "$((i+1))" "${NAT_RETURN[$i]}"
+                done
+                echo -e "\n  ${C_WARN}[ 0]${C_RESET} Cancel"
+                read -p "👉 Choice: " idx
+                [[ "$idx" == "0" ]] && continue
+                if [[ ! "$idx" =~ ^[0-9]+$ || "$idx" -lt 1 || "$idx" -gt "${#NAT_RETURN[@]}" ]]; then
+                    echo -e "\n${C_RED}❌ Invalid.${C_RESET}"; sleep 1; continue
+                fi
+                local removed="${NAT_RETURN[$((idx-1))]}"
+                unset "NAT_RETURN[$((idx-1))]"
+                NAT_RETURN=("${NAT_RETURN[@]}")
+                _nat_save_rules
+                _nat_apply
+                echo -e "\n${C_GREEN}✅ RETURN port $removed removed.${C_RESET}"
+                press_enter
+                ;;
+            3)
+                _nat_load_rules
+                echo -e "\n${C_DIM}Add a new DNAT forwarding rule.${C_RESET}"
+                read -p "👉 Protocol (tcp/udp) [tcp]: " proto
+                proto=${proto:-tcp}
+                [[ "$proto" != "tcp" && "$proto" != "udp" ]] && proto="tcp"
+                read -p "👉 Port or range (e.g. 8080 or 8000:9000): " prange
+                [[ -z "$prange" ]] && echo -e "\n${C_RED}❌ Required.${C_RESET}"; sleep 1; continue
+                read -p "👉 Forward to port: " target
+                [[ -z "$target" || ! "$target" =~ ^[0-9]+$ ]] && echo -e "\n${C_RED}❌ Invalid port.${C_RESET}"; sleep 1; continue
+                NAT_DNAT+=("$proto:$prange:$target")
+                _nat_save_rules
+                _nat_apply
+                echo -e "\n${C_GREEN}✅ DNAT rule added: $proto $prange → $target${C_RESET}"
+                press_enter
+                ;;
+            4)
+                _nat_load_rules
+                if [[ ${#NAT_DNAT[@]} -eq 0 ]]; then
+                    echo -e "\n${C_YELLOW}⚠️ No DNAT rules to edit.${C_RESET}"; sleep 1; continue
+                fi
+                echo -e "\n${C_BOLD}Select DNAT rule to edit:${C_RESET}\n"
+                for i in "${!NAT_DNAT[@]}"; do
+                    local rule="${NAT_DNAT[$i]}"
+                    local p prot range tgt
+                    IFS=: read -r prot range tgt <<< "$rule"
+                    printf "  ${C_CHOICE}[%2s]${C_RESET}  %-4s  %-17s → %s\n" "$((i+1))" "${prot^^}" "$range" "$tgt"
+                done
+                echo -e "\n  ${C_WARN}[ 0]${C_RESET} Cancel"
+                read -p "👉 Choice: " idx
+                [[ "$idx" == "0" ]] && continue
+                if [[ ! "$idx" =~ ^[0-9]+$ || "$idx" -lt 1 || "$idx" -gt "${#NAT_DNAT[@]}" ]]; then
+                    echo -e "\n${C_RED}❌ Invalid.${C_RESET}"; sleep 1; continue
+                fi
+                local old="${NAT_DNAT[$((idx-1))]}"
+                local oprot orange otarget
+                IFS=: read -r oprot orange otarget <<< "$old"
+                echo -e "\n${C_DIM}Editing: $oprot $orange → $otarget${C_RESET}"
+                read -p "👉 Protocol (tcp/udp) [$oprot]: " nproto
+                nproto=${nproto:-$oprot}
+                read -p "👉 Port or range [$orange]: " nrange
+                nrange=${nrange:-$orange}
+                read -p "👉 Forward to port [$otarget]: " ntarget
+                ntarget=${ntarget:-$otarget}
+                NAT_DNAT[$((idx-1))]="$nproto:$nrange:$ntarget"
+                _nat_save_rules
+                _nat_apply
+                echo -e "\n${C_GREEN}✅ DNAT rule updated.${C_RESET}"
+                press_enter
+                ;;
+            5)
+                _nat_load_rules
+                local total=$(( ${#NAT_RETURN[@]} + ${#NAT_DNAT[@]} ))
+                if [[ total -eq 0 ]]; then
+                    echo -e "\n${C_YELLOW}⚠️ No rules to delete.${C_RESET}"; sleep 1; continue
+                fi
+                echo -e "\n${C_BOLD}Select rule to delete:${C_RESET}\n"
+                local i idx
+                for i in "${!NAT_RETURN[@]}"; do
+                    printf "  ${C_CHOICE}[R%2s]${C_RESET}  RETURN  TCP  %s\n" "$((i+1))" "${NAT_RETURN[$i]}"
+                done
+                for i in "${!NAT_DNAT[@]}"; do
+                    local rule="${NAT_DNAT[$i]}"
+                    local prot range tgt
+                    IFS=: read -r prot range tgt <<< "$rule"
+                    printf "  ${C_CHOICE}[D%2s]${C_RESET}  DNAT    %-4s %s → %s\n" "$((i+1))" "${prot^^}" "$range" "$tgt"
+                done
+                echo -e "\n  ${C_WARN}[ 0]${C_RESET} Cancel"
+                read -p "👉 Enter code (e.g. R1 or D3): " code
+                [[ "$code" == "0" ]] && continue
+                if [[ "$code" =~ ^[Rr]([0-9]+)$ ]]; then
+                    idx="${BASH_REMATCH[1]}"
+                    if [[ "$idx" -ge 1 && "$idx" -le "${#NAT_RETURN[@]}" ]]; then
+                        local removed="${NAT_RETURN[$((idx-1))]}"
+                        unset "NAT_RETURN[$((idx-1))]"
+                        NAT_RETURN=("${NAT_RETURN[@]}")
+                        _nat_save_rules; _nat_apply
+                        echo -e "\n${C_GREEN}✅ RETURN $removed deleted.${C_RESET}"
+                    else
+                        echo -e "\n${C_RED}❌ Invalid index.${C_RESET}"; sleep 1; continue
+                    fi
+                elif [[ "$code" =~ ^[Dd]([0-9]+)$ ]]; then
+                    idx="${BASH_REMATCH[1]}"
+                    if [[ "$idx" -ge 1 && "$idx" -le "${#NAT_DNAT[@]}" ]]; then
+                        local removed="${NAT_DNAT[$((idx-1))]}"
+                        unset "NAT_DNAT[$((idx-1))]"
+                        NAT_DNAT=("${NAT_DNAT[@]}")
+                        _nat_save_rules; _nat_apply
+                        echo -e "\n${C_GREEN}✅ DNAT $removed deleted.${C_RESET}"
+                    else
+                        echo -e "\n${C_RED}❌ Invalid index.${C_RESET}"; sleep 1; continue
+                    fi
+                else
+                    echo -e "\n${C_RED}❌ Invalid format. Use R1 or D3.${C_RESET}"; sleep 1; continue
+                fi
+                press_enter
+                ;;
+            6)
+                echo -e "\n${C_YELLOW}⚠️ This will reset to the 8 RETURN + 4 DNAT defaults and wipe custom rules.${C_RESET}"
+                read -p "👉 Type 'yes' to confirm: " confirm
+                if [[ "$confirm" != "yes" ]]; then
+                    echo -e "\n${C_GREEN}Cancelled.${C_RESET}"; sleep 1; continue
+                fi
+                apply_default_nat_rules
+                press_enter
+                ;;
+            7)
+                _nat_load_rules
+                echo -e "\n${C_BOLD}${C_PURPLE}--- 👁️  Preview: Commands to be applied ---${C_RESET}"
+                _nat_preview_commands
+                echo
+                read -p "$(echo -e ${C_PROMPT}"👉 Press [Enter] to apply, or [0] to cancel: "${C_RESET})" confirm
+                if [[ "$confirm" == "0" ]]; then
+                    echo -e "\n${C_GREEN}Cancelled.${C_RESET}"; sleep 1; continue
+                fi
+                _nat_apply
+                echo -e "\n${C_GREEN}✅ NAT rules applied live.${C_RESET}"
+                press_enter
+                ;;
+            8)
+                echo -e "\n${C_BLUE}💾 Saving iptables rules...${C_RESET}"
+                _filter_iptables_save
+                echo -e "\n${C_GREEN}✅ Saved (iptables-persistent).${C_RESET}"
+                press_enter
+                ;;
+            0) return ;;
+            *) echo -e "\n${C_RED}❌ Invalid option.${C_RESET}" && sleep 1 ;;
+        esac
+    done
+}
+
 press_enter() {
     echo -e "\nPress ${C_YELLOW}[Enter]${C_RESET} to return to the menu..." && read -r || true
 }
@@ -6339,6 +6657,7 @@ main_menu() {
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "15" "🌐 Free Domain" "18" "💾 Backup Users"
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "16" "🎨 SSH Banner" "19" "📥 Restore Users"
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "17" "🔄 Auto-Reboot Task" "20" "🧹 Cleanup Expired"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[K\n" "21" "🔥 NAT Port Forwarding"
 
         echo
         echo -e "   ${C_DANGER}─────────────────────────────────────────────────────${C_RESET}"
@@ -6373,6 +6692,7 @@ main_menu() {
             18) backup_user_data; press_enter ;;
             19) restore_user_data; press_enter ;;
             20) cleanup_expired; press_enter ;;
+            21) nat_forward_menu ;;
             
             99) uninstall_script ;;
             0) exit 0 ;;
