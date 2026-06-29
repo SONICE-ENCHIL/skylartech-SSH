@@ -720,13 +720,13 @@ delete_firewallfalcon_user_accounts() {
 
 require_interactive_terminal() {
     if [[ ! -t 0 || ! -t 1 ]]; then
-        echo -e "${C_RED}❌ Error: The FirewallFalcon menu must be run from an interactive terminal.${C_RESET}"
+        echo -e "${C_RED}❌ Error: The SkylarTech-Inno menu must be run from an interactive terminal.${C_RESET}"
         exit 1
     fi
 }
 
 initial_setup() {
-    echo -e "${C_BLUE}⚙️ Initializing FirewallFalcon Manager setup...${C_RESET}"
+    echo -e "${C_BLUE}⚙️ Initializing SkylarTech-Inno Manager setup...${C_RESET}"
     check_environment
     
     ensure_firewallfalcon_dirs
@@ -1734,7 +1734,7 @@ _select_multi_user_interface() {
     if [[ ${#all_users[@]} -eq 0 ]]; then
         echo -e "${C_YELLOW}ℹ️ No users found in the manager database.${C_RESET}"
         if [[ "$include_orphan_users" == "true" ]]; then
-            echo -e "${C_DIM}No orphan FirewallFalcon system users were found either.${C_RESET}"
+            echo -e "${C_DIM}No orphan SkylarTech-Inno system users were found either.${C_RESET}"
         fi
         SELECTED_USERS=("NO_USERS"); return
     fi
@@ -1876,14 +1876,14 @@ create_user() {
         return
     fi
     if db_has_user "$username"; then
-        echo -e "\n${C_RED}❌ Error: User '$username' already exists in FirewallFalcon.${C_RESET}"
+        echo -e "\n${C_RED}❌ Error: User '$username' already exists in SkylarTech-Inno.${C_RESET}"
         return
     fi
     if id "$username" &>/dev/null; then
         if is_firewallfalcon_orphan_user "$username"; then
             echo -e "\n${C_YELLOW}⚠️ User '$username' already exists on the system but is missing from users.db.${C_RESET}"
             echo -e "${C_DIM}This usually happens after uninstalling the script without deleting the SSH users.${C_RESET}"
-            read -p "👉 Do you want to take control of this existing user and manage it with FirewallFalcon? (y/n): " adopt_confirm
+            read -p "👉 Do you want to take control of this existing user and manage it with SkylarTech-Inno? (y/n): " adopt_confirm
             if [[ "$adopt_confirm" == "y" || "$adopt_confirm" == "Y" ]]; then
                 adopt_existing=true
             else
@@ -1891,7 +1891,7 @@ create_user() {
                 return
             fi
         else
-            echo -e "\n${C_RED}❌ Error: System user '$username' already exists and does not look like a FirewallFalcon SSH account.${C_RESET}"
+            echo -e "\n${C_RED}❌ Error: System user '$username' already exists and does not look like a SkylarTech-Inno SSH account.${C_RESET}"
             return
         fi
     fi
@@ -1972,7 +1972,7 @@ create_user() {
 
     clear; show_banner
     if [[ "$adopt_existing" == "true" ]]; then
-        echo -e "${C_GREEN}✅ Existing system user '$username' has been imported into FirewallFalcon!${C_RESET}\n"
+        echo -e "${C_GREEN}✅ Existing system user '$username' has been imported into SkylarTech-Inno!${C_RESET}\n"
     else
         echo -e "${C_GREEN}✅ User '$username' created successfully!${C_RESET}\n"
     fi
@@ -2006,7 +2006,7 @@ create_user() {
 }
 
 delete_user() {
-    _select_multi_user_interface "--- 🗑️ Delete FirewallFalcon Users ---" "true"
+    _select_multi_user_interface "--- 🗑️ Delete SkylarTech-Inno Users ---" "true"
     if [[ ${#SELECTED_USERS[@]} -eq 0 || "${SELECTED_USERS[0]}" == "NO_USERS" ]]; then return; fi
     
     echo -e "\n${C_RED}⚠️ You selected ${#SELECTED_USERS[@]} user(s) to delete: ${C_YELLOW}${SELECTED_USERS[*]}${C_RESET}"
@@ -3850,7 +3850,7 @@ install_ssl_tunnel() {
     echo -e "   • Loopback SSL decryptor on ${C_WHITE}${HAPROXY_INTERNAL_DECRYPT_PORT}${C_RESET}"
 
     if [ -f "$HAPROXY_CONFIG" ] || [ -f "$NGINX_CONFIG_FILE" ]; then
-        echo -e "\n${C_YELLOW}⚠️ Existing HAProxy/Nginx configs will be replaced with the FirewallFalcon edge layout.${C_RESET}"
+        echo -e "\n${C_YELLOW}⚠️ Existing HAProxy/Nginx configs will be replaced with the SkylarTech-Inno edge layout.${C_RESET}"
         read -p "👉 Continue with the replacement? (y/n): " confirm_replace
         if [[ "$confirm_replace" != "y" && "$confirm_replace" != "Y" ]]; then
             echo -e "${C_RED}❌ Installation cancelled.${C_RESET}"
@@ -4811,7 +4811,7 @@ purge_nginx() {
     rm -f "${NGINX_CONFIG_FILE}.bak.firewallfalcon"
     rm -f "$NGINX_PORTS_FILE"
     if [[ "$mode" != "silent" ]]; then
-        echo -e "\n${C_GREEN}✅ Internal Nginx proxy purged. Shared FirewallFalcon certificates were kept.${C_RESET}"
+        echo -e "\n${C_GREEN}✅ Internal Nginx proxy purged. Shared SkylarTech-Inno certificates were kept.${C_RESET}"
     fi
 }
 
@@ -4821,7 +4821,7 @@ install_nginx_proxy() {
     echo -e "\n${C_CYAN}This keeps HAProxy on ${EDGE_PUBLIC_HTTP_PORT}/${EDGE_PUBLIC_TLS_PORT} and rewrites the internal Nginx proxy on ${NGINX_INTERNAL_HTTP_PORT}/${NGINX_INTERNAL_TLS_PORT}.${C_RESET}"
 
     if [ ! -s "$SSL_CERT_FILE" ] || [ ! -s "$SSL_CERT_CHAIN_FILE" ] || [ ! -s "$SSL_CERT_KEY_FILE" ]; then
-        echo -e "\n${C_YELLOW}⚠️ No shared FirewallFalcon certificate was found.${C_RESET}"
+        echo -e "\n${C_YELLOW}⚠️ No shared SkylarTech-Inno certificate was found.${C_RESET}"
         echo -e "${C_DIM}Running the full HAProxy edge installer so the certificate and both services stay aligned.${C_RESET}"
         install_ssl_tunnel
         return
@@ -5402,7 +5402,7 @@ uninstall_script() {
     local remove_users_on_uninstall=false
     mapfile -t removable_users < <(get_firewallfalcon_known_users)
     if [[ ${#removable_users[@]} -gt 0 ]]; then
-        echo -e "\n${C_YELLOW}FirewallFalcon SSH users detected on this VPS:${C_RESET} ${removable_users[*]}"
+        echo -e "\n${C_YELLOW}SkylarTech-Inno SSH users detected on this VPS:${C_RESET} ${removable_users[*]}"
         read -p "👉 Do you also want to permanently delete these SSH users before uninstalling? (y/n): " remove_users_confirm
         if [[ "$remove_users_confirm" == "y" || "$remove_users_confirm" == "Y" ]]; then
             remove_users_on_uninstall=true
@@ -5412,7 +5412,7 @@ uninstall_script() {
     echo -e "\n${C_BLUE}--- 💥 Starting Uninstallation 💥 ---${C_RESET}"
     
     if [[ "$remove_users_on_uninstall" == "true" ]]; then
-        echo -e "\n${C_BLUE}🗑️ Removing FirewallFalcon SSH users before uninstall...${C_RESET}"
+        echo -e "\n${C_BLUE}🗑️ Removing SkylarTech-Inno SSH users before uninstall...${C_RESET}"
         delete_firewallfalcon_user_accounts "${removable_users[@]}"
     fi
     
