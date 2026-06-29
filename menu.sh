@@ -95,6 +95,8 @@ HWID_KICK_LOG="/var/log/skylartech_hwid.log"
 DESEC_TOKEN="V55cFY8zTictLCPfviiuX5DHjs15"
 DESEC_DOMAIN="manager.skylartech.qzz.io"
 
+DOMAIN_OVERRIDE_FILE="$DB_DIR/domain_override"
+
 # --- Repository / binary source -------------------------------------------
 # Where release assets (Falcon Proxy) and raw files (udp-custom) are pulled
 # from. Defaults preserve the original Codeberg source, so behaviour is
@@ -5213,8 +5215,12 @@ refresh_banner_cache() {
     fi
     BANNER_CACHE_CPU_COUNT=$(nproc 2>/dev/null || echo "1")
     if [[ -z "$BANNER_CACHE_DOMAIN" ]]; then
-        BANNER_CACHE_DOMAIN=$(dig +short -x "$BANNER_CACHE_IP" 2>/dev/null | sed 's/\.$//' || true)
-        BANNER_CACHE_DOMAIN="${BANNER_CACHE_DOMAIN:-$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "unknown")}"
+        if [[ -f "$DOMAIN_OVERRIDE_FILE" ]]; then
+            BANNER_CACHE_DOMAIN=$(<"$DOMAIN_OVERRIDE_FILE")
+        else
+            BANNER_CACHE_DOMAIN=$(dig +short -x "$BANNER_CACHE_IP" 2>/dev/null | sed 's/\.$//' || true)
+            BANNER_CACHE_DOMAIN="${BANNER_CACHE_DOMAIN:-$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo "unknown")}"
+        fi
     fi
     if [[ -s "$DB_FILE" ]]; then
         BANNER_CACHE_TOTAL_USERS=0
@@ -5350,6 +5356,30 @@ protocol_menu() {
             *) invalid_option ;;
         esac
     done
+}
+
+set_domain() {
+    echo
+    echo -e "${C_TITLE}--- 🌐 Set Custom Domain ---${C_RESET}"
+    echo
+    local current=""
+    if [[ -f "$DOMAIN_OVERRIDE_FILE" ]]; then
+        current=$(<"$DOMAIN_OVERRIDE_FILE")
+        echo -e "${C_GRAY}Current override:${C_RESET} ${C_GREEN}$current${C_RESET}"
+    else
+        echo -e "${C_GRAY}No custom domain set. Using auto-detected value.${C_RESET}"
+    fi
+    echo
+    read -r -p "$(echo -e ${C_PROMPT}"👉 Enter domain (leave empty to clear override): "${C_RESET})" new_domain
+    if [[ -z "$new_domain" ]]; then
+        rm -f "$DOMAIN_OVERRIDE_FILE"
+        echo -e "${C_GREEN}✅ Domain override cleared. Will auto-detect on next refresh.${C_RESET}"
+    else
+        echo "$new_domain" > "$DOMAIN_OVERRIDE_FILE"
+        echo -e "${C_GREEN}✅ Domain set to: ${new_domain}${C_RESET}"
+    fi
+    BANNER_CACHE_DOMAIN=""
+    press_enter
 }
 
 uninstall_script() {
@@ -6616,8 +6646,9 @@ main_menu() {
         echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "12" "🔌 Protocol Manager" "13" "📈 Traffic Monitor"
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "14" "🔞 Content Filter" "15" "🎨 SSH Banner"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "16" "🔄 Auto-Reboot Task" "19" "📥 Restore Users"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "20" "🧹 Cleanup Expired" "21" "🔥 NAT Forwarding"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "16" "🔄 Auto-Reboot Task" "17" "🌐 Set Domain"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "19" "📥 Restore Users" "20" "🧹 Cleanup Expired"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "21" "🔥 NAT Forwarding" "" ""
 
         echo
         echo -e "   ${C_DANGER}─────────────────────────────────────────────────────${C_RESET}"
@@ -6648,6 +6679,7 @@ main_menu() {
             
             15) ssh_banner_menu ;;
             16) auto_reboot_menu ;;
+            17) set_domain ;;
             18) backup_user_data; press_enter ;;
             19) restore_user_data; press_enter ;;
             20) cleanup_expired; press_enter ;;
