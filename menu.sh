@@ -5205,6 +5205,7 @@ refresh_banner_cache() {
     ((d)) && parts+=("($d)days")
     local IFS=,
     BANNER_CACHE_UP_TIME="${parts[*]}"
+    [[ -z "$BANNER_CACHE_UP_TIME" ]] && BANNER_CACHE_UP_TIME="(0)days"
     BANNER_CACHE_RAM_USAGE=$(free -m | awk '/^Mem:/{if($2>0){printf "%.2f", $3*100/$2}else{print "0.00"}}')
     BANNER_CACHE_CPU_LOAD=$(awk '{print $1}' /proc/loadavg 2>/dev/null)
     if [[ -z "$BANNER_CACHE_IP" ]]; then
