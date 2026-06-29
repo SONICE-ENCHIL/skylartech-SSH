@@ -4519,17 +4519,10 @@ EOF
 
     # Port Forwarding / Firewall
     echo -e "${C_BLUE}🔥 Configuring Firewall Rules (Redirecting 6000-19999 -> 5667)...${C_RESET}"
-    
-    # Determine primary interface
-    local iface=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
-    
-    if [ -n "$iface" ]; then
-        iptables -t nat -C PREROUTING -i "$iface" -p udp --dport 6000:19999 -j DNAT --to-destination :5667 2>/dev/null || \
-            iptables -t nat -A PREROUTING -i "$iface" -p udp --dport 6000:19999 -j DNAT --to-destination :5667
-        # Note: IPTables rules are not persistent by default without iptables-persistent package
-    else
-        echo -e "${C_YELLOW}⚠️ Could not detect default interface for IPTables redirection.${C_RESET}"
-    fi
+    # Ensure all DNAT rules (badvpn + zivpn) are applied together so the previous
+    # badvpn rules aren't silently dropped when this rule is added independently.
+    _nat_load_rules
+    _nat_apply
 
     # Cleanup
     rm -f zi.sh zi2.sh 2>/dev/null
