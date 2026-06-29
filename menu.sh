@@ -6539,10 +6539,8 @@ main_menu() {
         echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
         echo -e "   ${C_TITLE}              ⚙️ SYSTEM SETTINGS               ${C_RESET}"
         echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "15" "🎨 SSH Banner" "18" "💾 Backup Users"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "16" "🔄 Auto-Reboot Task" "19" "📥 Restore Users"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[K\n" "20" "🧹 Cleanup Expired"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[K\n" "21" "🔥 NAT Port Forwarding"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-16s\033[30G${C_CHOICE}[%2s]${C_RESET}\033[35G%-16s\033[54G${C_CHOICE}[%2s]${C_RESET}\033[59G%-16s\033[K\n" "15" "🎨 SSH Banner" "18" "💾 Backup Users" "20" "🧹 Clean Expired"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-16s\033[30G${C_CHOICE}[%2s]${C_RESET}\033[35G%-16s\033[54G${C_CHOICE}[%2s]${C_RESET}\033[59G%-16s\033[K\n" "16" "🔄 Auto-Reboot" "19" "📥 Restore Users" "21" "🔥 NAT Forwarding"
 
         echo
         echo -e "   ${C_DANGER}─────────────────────────────────────────────────────${C_RESET}"
