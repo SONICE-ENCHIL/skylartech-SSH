@@ -7,7 +7,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-echo "Installing SkylarTech-Inno Manager..."
+echo "Installing Skylartech Manager..."
 
 # URLs (IPv4 forced to avoid GitHub IPv6 issues)
 # Override these to install from your own fork, e.g.:
@@ -46,7 +46,7 @@ download_file /usr/local/bin/menu "$MENU_URL"
 sed -i 's/\r$//' /usr/local/bin/menu 2>/dev/null || true
 chmod +x /usr/local/bin/menu
 
-echo "Applying SkylarTech-Inno SSH configuration..."
+echo "Applying Skylartech SSH configuration..."
 
 SSHD_CONFIG="/etc/ssh/sshd_config"
 BACKUP="/etc/ssh/sshd_config.backup.$(date +%F-%H%M%S)"
