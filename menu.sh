@@ -6525,15 +6525,16 @@ main_menu() {
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "3" "🔄 Renew User" "9" "⏱️ Trial Account"
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "4" "🔒 Lock User" "10" "👥 Bulk Users"
         printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "5" "🔓 Unlock User" "11" "👁️ User Details"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[K\n" "6" "📝 Edit User"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_ORANGE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "6" "📝 Edit User" "18" "💾 Backup Users"
         
         echo
         echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
         echo -e "   ${C_TITLE}           🛠️ TOOLS & SETTINGS            ${C_RESET}"
         echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-18s\033[32G${C_CHOICE}[%2s]${C_RESET}\033[37G%-18s\033[58G${C_CHOICE}[%2s]${C_RESET}\033[63G%-18s\033[K\n" "12" "🔌 Protocol Manager" "13" "📈 Traffic Monitor" "14" "🔞 Content Filter"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-18s\033[32G${C_CHOICE}[%2s]${C_RESET}\033[37G%-18s\033[58G${C_CHOICE}[%2s]${C_RESET}\033[63G%-18s\033[K\n" "15" "🎨 SSH Banner" "16" "🔄 Auto-Reboot Task" "18" "💾 Backup Users"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-18s\033[32G${C_CHOICE}[%2s]${C_RESET}\033[37G%-18s\033[58G${C_CHOICE}[%2s]${C_RESET}\033[63G%-18s\033[K\n" "19" "📥 Restore Users" "20" "🧹 Cleanup Expired" "21" "🔥 NAT Forwarding"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "12" "🔌 Protocol Manager" "13" "📈 Traffic Monitor"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "14" "🔞 Content Filter" "15" "🎨 SSH Banner"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "16" "🔄 Auto-Reboot Task" "19" "📥 Restore Users"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[38G${C_CHOICE}[%2s]${C_RESET}\033[43G%-26s\033[K\n" "20" "🧹 Cleanup Expired" "21" "🔥 NAT Forwarding"
 
         echo
         echo -e "   ${C_DANGER}─────────────────────────────────────────────────────${C_RESET}"
