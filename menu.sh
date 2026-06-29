@@ -1937,8 +1937,8 @@ create_user() {
     # in the UDP-Custom connection string (IP:range@user:pass).
     local udp_port_range=""
     if [[ "$app" == "http" ]] && systemctl is-active --quiet udp-custom; then
-        read -p "🚀 Enter UDP-Custom port range [1000-5000]: " udp_port_range
-        udp_port_range=${udp_port_range:-1000-5000}
+        read -p "🚀 Enter UDP-Custom port range [1-65535]: " udp_port_range
+        udp_port_range=${udp_port_range:-1-65535}
     fi
     local expire_date
     expire_date=$(date -d "+$days days" +%Y-%m-%d)
