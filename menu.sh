@@ -27,17 +27,17 @@ C_STATUS_A=$C_GREEN
 C_STATUS_I=$C_GRAY
 C_ACCENT=$C_ORANGE
 
-DB_DIR="/etc/firewallfalcon"
+DB_DIR="/etc/skylartech"
 DB_FILE="$DB_DIR/users.db"
 INSTALL_FLAG_FILE="$DB_DIR/.install"
 BADVPN_SERVICE_FILE="/etc/systemd/system/badvpn.service"
 BADVPN_BUILD_DIR="/root/badvpn-build"
 HAPROXY_CONFIG="/etc/haproxy/haproxy.cfg"
 NGINX_CONFIG_FILE="/etc/nginx/sites-available/default"
-SSL_CERT_DIR="/etc/firewallfalcon/ssl"
-SSL_CERT_FILE="$SSL_CERT_DIR/firewallfalcon.pem"
-SSL_CERT_CHAIN_FILE="$SSL_CERT_DIR/firewallfalcon.crt"
-SSL_CERT_KEY_FILE="$SSL_CERT_DIR/firewallfalcon.key"
+SSL_CERT_DIR="/etc/skylartech/ssl"
+SSL_CERT_FILE="$SSL_CERT_DIR/skylartech.pem"
+SSL_CERT_CHAIN_FILE="$SSL_CERT_DIR/skylartech.crt"
+SSL_CERT_KEY_FILE="$SSL_CERT_DIR/skylartech.key"
 EDGE_CERT_INFO_FILE="$DB_DIR/edge_cert.conf"
 NGINX_PORTS_FILE="$DB_DIR/nginx_ports.conf"
 EDGE_PUBLIC_HTTP_PORT="80"
@@ -47,7 +47,7 @@ NGINX_INTERNAL_TLS_PORT="8443"
 HAPROXY_INTERNAL_DECRYPT_PORT="10443"
 DNSTT_SERVICE_FILE="/etc/systemd/system/dnstt.service"
 DNSTT_BINARY="/usr/local/bin/dnstt-server"
-DNSTT_KEYS_DIR="/etc/firewallfalcon/dnstt"
+DNSTT_KEYS_DIR="/etc/skylartech/dnstt"
 DNSTT_CONFIG_FILE="$DB_DIR/dnstt_info.conf"
 UDP_CUSTOM_DIR="/root/udp"
 UDP_CUSTOM_SERVICE_FILE="/etc/systemd/system/udp-custom.service"
@@ -57,17 +57,17 @@ SSH_BANNER_FILE="/etc/bannerssh"
 FALCONPROXY_SERVICE_FILE="/etc/systemd/system/falconproxy.service"
 FALCONPROXY_BINARY="/usr/local/bin/falconproxy"
 FALCONPROXY_CONFIG_FILE="$DB_DIR/falconproxy_config.conf"
-LIMITER_SCRIPT="/usr/local/bin/firewallfalcon-limiter.sh"
-LIMITER_SERVICE="/etc/systemd/system/firewallfalcon-limiter.service"
+LIMITER_SCRIPT="/usr/local/bin/skylartech-limiter.sh"
+LIMITER_SERVICE="/etc/systemd/system/skylartech-limiter.service"
 BANDWIDTH_DIR="$DB_DIR/bandwidth"
-BACKUP_DIR="/root/firewallfalcon_backups"
+BACKUP_DIR="/root/skylartech_backups"
 TRIAL_EXPIRY_DIR="$DB_DIR/trials"
-BANDWIDTH_SCRIPT="/usr/local/bin/firewallfalcon-bandwidth.sh"
-BANDWIDTH_SERVICE="/etc/systemd/system/firewallfalcon-bandwidth.service"
-LEGACY_BANDWIDTH_DIR="/usr/local/bin/firewallfalcon-bandwidth"
-TRIAL_CLEANUP_SCRIPT="/usr/local/bin/firewallfalcon-trial-cleanup.sh"
-LOGIN_INFO_SCRIPT="/usr/local/bin/firewallfalcon-login-info.sh"
-SSHD_FF_CONFIG="/etc/ssh/sshd_config.d/firewallfalcon.conf"
+BANDWIDTH_SCRIPT="/usr/local/bin/skylartech-bandwidth.sh"
+BANDWIDTH_SERVICE="/etc/systemd/system/skylartech-bandwidth.service"
+LEGACY_BANDWIDTH_DIR="/usr/local/bin/skylartech-bandwidth"
+TRIAL_CLEANUP_SCRIPT="/usr/local/bin/skylartech-trial-cleanup.sh"
+LOGIN_INFO_SCRIPT="/usr/local/bin/skylartech-login-info.sh"
+SSHD_FF_CONFIG="/etc/ssh/sshd_config.d/skylartech.conf"
 
 # --- ZiVPN Variables ---
 ZIVPN_DIR="/etc/zivpn"
@@ -87,13 +87,13 @@ ZIVPN_LOCK_DIR="$DB_DIR/zivpn_locked"
 # hwid_allowed.db is the runtime mirror the enforcer daemon reads, so it never
 # has to parse the password-bearing main users.db while tailing journals.
 HWID_ALLOWED_DB="$DB_DIR/hwid_allowed.db"            # username|password|hwid|strict
-HWID_ENFORCER_SCRIPT="/usr/local/bin/firewallfalcon-hwid-enforcer.sh"
-HWID_ENFORCER_SERVICE="/etc/systemd/system/firewallfalcon-hwid-enforcer.service"
+HWID_ENFORCER_SCRIPT="/usr/local/bin/skylartech-hwid-enforcer.sh"
+HWID_ENFORCER_SERVICE="/etc/systemd/system/skylartech-hwid-enforcer.service"
 HWID_STATE_FILE="$DB_DIR/hwid_enforce.state"         # "on" / "off" global flag
-HWID_KICK_LOG="/var/log/firewallfalcon_hwid.log"
+HWID_KICK_LOG="/var/log/skylartech_hwid.log"
 
 DESEC_TOKEN="V55cFY8zTictLCPfviiuX5DHjs15"
-DESEC_DOMAIN="manager.firewallfalcon.qzz.io"
+DESEC_DOMAIN="manager.skylartech.qzz.io"
 
 # --- Repository / binary source -------------------------------------------
 # Where release assets (Falcon Proxy) and raw files (udp-custom) are pulled
@@ -264,7 +264,7 @@ rewrite_ubuntu_apt_sources() {
     for file in "${source_files[@]}"; do
         [[ -f "$file" ]] || continue
         if grep -Eq "$from_archive|$from_security|$from_ports" "$file" 2>/dev/null; then
-            backup_file="${file}.bak.firewallfalcon"
+            backup_file="${file}.bak.skylartech"
             [[ -f "$backup_file" ]] || cp "$file" "$backup_file" 2>/dev/null || true
             sed -i -E \
                 -e "s|$from_archive|$to_archive|g" \
@@ -449,12 +449,12 @@ check_environment() {
     fi
 }
 
-ensure_firewallfalcon_dirs() {
+ensure_skylartech_dirs() {
     mkdir -p "$DB_DIR" "$SSL_CERT_DIR" "$BANDWIDTH_DIR" "$TRIAL_EXPIRY_DIR" /etc/ssh/sshd_config.d
     touch "$DB_FILE"
 }
 
-ensure_firewallfalcon_system_group() {
+ensure_skylartech_system_group() {
     getent group "$FF_USERS_GROUP" >/dev/null 2>&1 || groupadd "$FF_USERS_GROUP" >/dev/null 2>&1 || true
 }
 
@@ -625,7 +625,7 @@ _ff_hwid_label() {
     fi
 }
 
-is_firewallfalcon_orphan_user() {
+is_skylartech_orphan_user() {
     local username="$1"
     local passwd_line system_user _ uid _ home shell
 
@@ -648,17 +648,17 @@ is_firewallfalcon_orphan_user() {
     return 1
 }
 
-get_firewallfalcon_orphan_users() {
+get_skylartech_orphan_users() {
     local username
     while IFS=: read -r username _rest; do
         [[ -n "$username" ]] || continue
-        if is_firewallfalcon_orphan_user "$username"; then
+        if is_skylartech_orphan_user "$username"; then
             echo "$username"
         fi
     done < /etc/passwd
 }
 
-get_firewallfalcon_known_users() {
+get_skylartech_known_users() {
     local username
     local -A seen_users=()
 
@@ -671,13 +671,13 @@ get_firewallfalcon_known_users() {
 
     while IFS= read -r username; do
         [[ -n "$username" ]] && seen_users["$username"]=1
-    done < <(get_firewallfalcon_orphan_users)
+    done < <(get_skylartech_orphan_users)
 
     (( ${#seen_users[@]} > 0 )) || return 0
     printf "%s\n" "${!seen_users[@]}" | sort
 }
 
-delete_firewallfalcon_user_accounts() {
+delete_skylartech_user_accounts() {
     local -a users_to_delete=("$@")
     local username
 
@@ -728,8 +728,8 @@ initial_setup() {
     echo -e "${C_BLUE}⚙️ Initializing Skylartech Manager setup...${C_RESET}"
     check_environment
     
-    ensure_firewallfalcon_dirs
-    ensure_firewallfalcon_system_group
+    ensure_skylartech_dirs
+    ensure_skylartech_system_group
     
     echo -e "${C_BLUE}🔹 Configuring user limiter service...${C_RESET}"
     setup_limiter_service
@@ -915,16 +915,16 @@ setup_limiter_service() {
     # Combined limiter + bandwidth monitoring
     cat > "$LIMITER_SCRIPT" << 'EOF'
 #!/bin/bash
-# FirewallFalcon limiter version 2026-06-26.4
-DB_FILE="/etc/firewallfalcon/users.db"
-BW_DIR="/etc/firewallfalcon/bandwidth"
+# Skylartech limiter version 2026-06-26.4
+DB_FILE="/etc/skylartech/users.db"
+BW_DIR="/etc/skylartech/bandwidth"
 PID_DIR="$BW_DIR/pidtrack"
-BANNER_DIR="/etc/firewallfalcon/banners"
-TRIAL_DIR="/etc/firewallfalcon/trials"
+BANNER_DIR="/etc/skylartech/banners"
+TRIAL_DIR="/etc/skylartech/trials"
 SCAN_INTERVAL=10
 # UDP relay coordinates so auto-locks can cut ZiVPN / udp-custom like the menu does.
 ZIVPN_CONFIG_FILE="/etc/zivpn/config.json"
-ZIVPN_LOCK_DIR="/etc/firewallfalcon/zivpn_locked"
+ZIVPN_LOCK_DIR="/etc/skylartech/zivpn_locked"
 ZIVPN_LISTEN_PORT="5667"
 UDP_CUSTOM_LISTEN_PORT="36712"
 
@@ -1123,7 +1123,7 @@ while true; do
         done < <(passwd -Sa 2>/dev/null)
     fi
 
-    if [[ -f "/etc/firewallfalcon/banners_enabled" ]]; then
+    if [[ -f "/etc/skylartech/banners_enabled" ]]; then
         mkdir -p "$BANNER_DIR"
         dynamic_banners_enabled=true
     fi
@@ -1327,7 +1327,7 @@ EOF
 
     cat > "$LIMITER_SERVICE" << EOF
 [Unit]
-Description=FirewallFalcon Active User Limiter
+Description=Skylartech Active User Limiter
 After=network.target
 
 [Service]
@@ -1346,26 +1346,26 @@ WantedBy=multi-user.target
 EOF
     sed -i 's/\r$//' "$LIMITER_SERVICE" 2>/dev/null
 
-    pkill -f "firewallfalcon-limiter" 2>/dev/null
+    pkill -f "skylartech-limiter" 2>/dev/null
 
-    if ! systemctl is-active --quiet firewallfalcon-limiter; then
+    if ! systemctl is-active --quiet skylartech-limiter; then
         systemctl daemon-reload
-        systemctl enable firewallfalcon-limiter &>/dev/null
-        systemctl start firewallfalcon-limiter --no-block &>/dev/null
+        systemctl enable skylartech-limiter &>/dev/null
+        systemctl start skylartech-limiter --no-block &>/dev/null
         
     else
-        systemctl restart firewallfalcon-limiter --no-block &>/dev/null
+        systemctl restart skylartech-limiter --no-block &>/dev/null
         
     fi
 }
 
 sync_runtime_components_if_needed() {
-    local limiter_marker="# FirewallFalcon limiter version 2026-06-26.4"
+    local limiter_marker="# Skylartech limiter version 2026-06-26.4"
     # Safety net: guarantee core directories and the user group exist even when
     # the menu is launched directly (e.g. `bash menu.sh` from a git clone)
     # without the one-time `--install-setup` having been run first.
-    ensure_firewallfalcon_dirs
-    ensure_firewallfalcon_system_group
+    ensure_skylartech_dirs
+    ensure_skylartech_system_group
     cleanup_legacy_bandwidth_runtime
     setup_trial_cleanup_script >/dev/null 2>&1
     if [[ ! -f "$LIMITER_SCRIPT" ]] || ! grep -Fqx "$limiter_marker" "$LIMITER_SCRIPT" 2>/dev/null; then
@@ -1374,7 +1374,7 @@ sync_runtime_components_if_needed() {
     if [[ -f "$BADVPN_SERVICE_FILE" ]]; then
         ensure_badvpn_service_is_quiet
     fi
-    if [[ -f "/etc/firewallfalcon/banners_enabled" ]]; then
+    if [[ -f "/etc/skylartech/banners_enabled" ]]; then
         update_ssh_banners_config
     elif [[ -f "$SSHD_FF_CONFIG" ]]; then
         disable_dynamic_ssh_banner_system
@@ -1384,14 +1384,14 @@ sync_runtime_components_if_needed() {
     touch "$HWID_ALLOWED_DB" 2>/dev/null && chmod 600 "$HWID_ALLOWED_DB" 2>/dev/null
     hwid_sync_allowed_db
     if [[ "$(cat "$HWID_STATE_FILE" 2>/dev/null)" == "on" ]]; then
-        local hwid_enforcer_marker="# FirewallFalcon HWID enforcer version 2026-06-26.1"
-        if ! systemctl is-active --quiet firewallfalcon-hwid-enforcer 2>/dev/null; then
+        local hwid_enforcer_marker="# Skylartech HWID enforcer version 2026-06-26.1"
+        if ! systemctl is-active --quiet skylartech-hwid-enforcer 2>/dev/null; then
             enable_hwid_lock >/dev/null 2>&1
         elif ! grep -Fq "$hwid_enforcer_marker" "$HWID_ENFORCER_SCRIPT" 2>/dev/null; then
             # Already running an older enforcer (single-HWID match) — rewrite the
             # script with the comma-list matcher and restart so it takes effect.
             write_hwid_enforcer
-            systemctl restart firewallfalcon-hwid-enforcer 2>/dev/null
+            systemctl restart skylartech-hwid-enforcer 2>/dev/null
         fi
     fi
 }
@@ -1405,9 +1405,9 @@ setup_bandwidth_service() {
 cleanup_legacy_bandwidth_runtime() {
     local needs_reload=false
 
-    systemctl stop firewallfalcon-bandwidth &>/dev/null || true
-    systemctl disable firewallfalcon-bandwidth &>/dev/null || true
-    pkill -f "firewallfalcon-bandwidth" &>/dev/null || true
+    systemctl stop skylartech-bandwidth &>/dev/null || true
+    systemctl disable skylartech-bandwidth &>/dev/null || true
+    pkill -f "skylartech-bandwidth" &>/dev/null || true
 
     if [[ -e "$BANDWIDTH_SERVICE" || -e "$BANDWIDTH_SCRIPT" || -e "$LEGACY_BANDWIDTH_DIR" ]]; then
         rm -f "$BANDWIDTH_SERVICE" "$BANDWIDTH_SCRIPT" 2>/dev/null
@@ -1423,11 +1423,11 @@ cleanup_legacy_bandwidth_runtime() {
 setup_trial_cleanup_script() {
     cat > "$TRIAL_CLEANUP_SCRIPT" << 'TREOF'
 #!/bin/bash
-# FirewallFalcon Trial Account Auto-Cleanup
-# Usage: firewallfalcon-trial-cleanup.sh <username>
-DB_FILE="/etc/firewallfalcon/users.db"
-BW_DIR="/etc/firewallfalcon/bandwidth"
-TRIAL_DIR="/etc/firewallfalcon/trials"
+# Skylartech Trial Account Auto-Cleanup
+# Usage: skylartech-trial-cleanup.sh <username>
+DB_FILE="/etc/skylartech/users.db"
+BW_DIR="/etc/skylartech/bandwidth"
+TRIAL_DIR="/etc/skylartech/trials"
 
 username="$1"
 if [[ -z "$username" ]]; then exit 1; fi
@@ -1459,8 +1459,8 @@ TREOF
 }
 
 disable_dynamic_ssh_banner_system() {
-    rm -f "/etc/firewallfalcon/banners_enabled" "$SSHD_FF_CONFIG" /usr/local/bin/firewallfalcon-login-info.sh 2>/dev/null
-    rm -rf "/etc/firewallfalcon/banners" 2>/dev/null
+    rm -f "/etc/skylartech/banners_enabled" "$SSHD_FF_CONFIG" /usr/local/bin/skylartech-login-info.sh 2>/dev/null
+    rm -rf "/etc/skylartech/banners" 2>/dev/null
     invalidate_banner_cache
 }
 
@@ -1473,7 +1473,7 @@ is_static_ssh_banner_enabled() {
 }
 
 is_dynamic_ssh_banner_enabled() {
-    [[ -f "/etc/firewallfalcon/banners_enabled" && -f "$SSHD_FF_CONFIG" ]]
+    [[ -f "/etc/skylartech/banners_enabled" && -f "$SSHD_FF_CONFIG" ]]
 }
 
 get_ssh_banner_mode() {
@@ -1495,7 +1495,7 @@ refresh_dynamic_banner_routing_if_enabled() {
 update_ssh_banners_config() {
     local tmp_conf
 
-    if [[ ! -f "/etc/firewallfalcon/banners_enabled" ]]; then
+    if [[ ! -f "/etc/skylartech/banners_enabled" ]]; then
         if [[ -f "$SSHD_FF_CONFIG" ]]; then
             rm -f "$SSHD_FF_CONFIG" 2>/dev/null
             systemctl reload sshd 2>/dev/null || systemctl reload ssh 2>/dev/null
@@ -1503,15 +1503,15 @@ update_ssh_banners_config() {
         return
     fi
 
-    ensure_firewallfalcon_dirs
+    ensure_skylartech_dirs
     tmp_conf="/tmp/ff_banners_new.conf"
-    echo "# FirewallFalcon - Dynamic per-user SSH banners" > "$tmp_conf"
+    echo "# Skylartech - Dynamic per-user SSH banners" > "$tmp_conf"
 
     if [[ -f "$DB_FILE" ]]; then
         while IFS=: read -r u _rest; do
             [[ -z "$u" || "$u" == \#* ]] && continue
             echo "Match User $u" >> "$tmp_conf"
-            echo "    Banner /etc/firewallfalcon/banners/${u}.txt" >> "$tmp_conf"
+            echo "    Banner /etc/skylartech/banners/${u}.txt" >> "$tmp_conf"
         done < "$DB_FILE"
     fi
 
@@ -1527,8 +1527,8 @@ update_ssh_banners_config() {
 }
 
 setup_ssh_login_info() {
-    ensure_firewallfalcon_dirs || return 1
-    if ! touch "/etc/firewallfalcon/banners_enabled"; then
+    ensure_skylartech_dirs || return 1
+    if ! touch "/etc/skylartech/banners_enabled"; then
         echo -e "${C_RED}❌ Failed to enable dynamic SSH banners.${C_RESET}"
         return 1
     fi
@@ -1614,7 +1614,7 @@ _select_multi_user_interface() {
     fi
 
     if [[ "$include_orphan_users" == "true" ]]; then
-        mapfile -t orphan_users < <(get_firewallfalcon_orphan_users)
+        mapfile -t orphan_users < <(get_skylartech_orphan_users)
         for username in "${orphan_users[@]}"; do
             orphan_user_lookup["$username"]=1
             if ! printf "%s\n" "${all_users[@]}" | grep -Fxq "$username"; then
@@ -1775,7 +1775,7 @@ create_user() {
         return
     fi
     if id "$username" &>/dev/null; then
-        if is_firewallfalcon_orphan_user "$username"; then
+        if is_skylartech_orphan_user "$username"; then
             echo -e "\n${C_YELLOW}⚠️ User '$username' already exists on the system but is missing from users.db.${C_RESET}"
             echo -e "${C_DIM}This usually happens after uninstalling the script without deleting the SSH users.${C_RESET}"
             read -p "👉 Do you want to take control of this existing user and manage it with Skylartech? (y/n): " adopt_confirm
@@ -1845,7 +1845,7 @@ create_user() {
     fi
     local expire_date
     expire_date=$(date -d "+$days days" +%Y-%m-%d)
-    ensure_firewallfalcon_system_group
+    ensure_skylartech_system_group
     if [[ "$adopt_existing" == "true" ]]; then
         usermod -s /usr/sbin/nologin "$username" &>/dev/null
     else
@@ -1909,7 +1909,7 @@ delete_user() {
     if [[ "$confirm" != "y" ]]; then echo -e "\n${C_YELLOW}❌ Deletion cancelled.${C_RESET}"; return; fi
     
     echo -e "\n${C_BLUE}🗑️ Deleting selected users...${C_RESET}"
-    delete_firewallfalcon_user_accounts "${SELECTED_USERS[@]}"
+    delete_skylartech_user_accounts "${SELECTED_USERS[@]}"
 }
 
 view_user_details() {
@@ -2117,7 +2117,7 @@ edit_user() {
                    # A freshly-assigned device shouldn't stay blocked from a prior session.
                    _ff_unblock_user_traffic "$username"
                    echo -e "\n${C_GREEN}✅ HWID(s) for '$username': ${C_YELLOW}$(_ff_hwid_label "$cur_hwid" "$cur_strict" strict)${C_RESET}"
-                   if ! systemctl is-active --quiet firewallfalcon-hwid-enforcer 2>/dev/null; then
+                   if ! systemctl is-active --quiet skylartech-hwid-enforcer 2>/dev/null; then
                        echo -e "${C_DIM}ℹ️ Global HWID Lock is OFF — enable it in Protocol Manager to enforce.${C_RESET}"
                    fi
                fi ;;
@@ -2211,7 +2211,7 @@ edit_user() {
                            echo -e "\n${C_GREEN}✅ Device ${C_YELLOW}${devid}${C_GREEN} is now ${C_RED}DISABLED${C_GREEN}.${C_RESET}"
                            # Instant cutoff: bounce the UDP relays so the just-disabled
                            # device re-handshakes and is dropped by the enforcer at once.
-                            if [[ "$cur_strict" == "1" ]] && systemctl is-active --quiet firewallfalcon-hwid-enforcer 2>/dev/null; then
+                            if [[ "$cur_strict" == "1" ]] && systemctl is-active --quiet skylartech-hwid-enforcer 2>/dev/null; then
                                 local -a blip=()
                                 systemctl is-active --quiet udp-custom 2>/dev/null && blip+=(udp-custom)
                                 systemctl is-active --quiet badvpn 2>/dev/null && blip+=(badvpn)
@@ -2677,7 +2677,7 @@ cleanup_expired() {
 
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         echo -e "\n${C_BLUE}🗑️ Deleting expired users...${C_RESET}"
-        delete_firewallfalcon_user_accounts "${expired_users[@]}"
+        delete_skylartech_user_accounts "${expired_users[@]}"
         echo -e "\n${C_GREEN}✅ Expired users have been cleaned up.${C_RESET}"
     else
         echo -e "\n${C_YELLOW}❌ Cleanup cancelled.${C_RESET}"
@@ -2693,7 +2693,7 @@ backup_user_data() {
         return
     fi
     mkdir -p "$BACKUP_DIR"
-    local auto_name="firewallfalcon_users_$(date +%Y-%m-%d_%H-%M-%S).tar.gz"
+    local auto_name="skylartech_users_$(date +%Y-%m-%d_%H-%M-%S).tar.gz"
     local auto_path="$BACKUP_DIR/$auto_name"
     read -p "👉 Enter path or press Enter for auto-named backup [$auto_path]: " backup_path
     backup_path=${backup_path:-$auto_path}
@@ -2719,7 +2719,7 @@ restore_user_data() {
         [[ -d "$dir" ]] || continue
         while IFS= read -r f; do
             [[ -n "$f" ]] && backups+=("$f")
-        done < <(find "$dir" -maxdepth 1 -name 'firewallfalcon_users*.tar.gz' -printf '%T@ %p\n' 2>/dev/null | sort -rn | cut -d' ' -f2-)
+        done < <(find "$dir" -maxdepth 1 -name 'skylartech_users*.tar.gz' -printf '%T@ %p\n' 2>/dev/null | sort -rn | cut -d' ' -f2-)
     done
 
     local backup_path=""
@@ -2769,7 +2769,7 @@ restore_user_data() {
         rm -rf "$temp_dir"
         return
     fi
-    local restored_db_file="$temp_dir/firewallfalcon/users.db"
+    local restored_db_file="$temp_dir/skylartech/users.db"
     if [ ! -f "$restored_db_file" ]; then
         echo -e "\n${C_RED}❌ ERROR: users.db not found in the backup. Cannot restore user accounts.${C_RESET}"
         rm -rf "$temp_dir"
@@ -2778,21 +2778,21 @@ restore_user_data() {
     echo -e "${C_BLUE}⚙️ Overwriting current user database...${C_RESET}"
     mkdir -p "$DB_DIR"
     cp "$restored_db_file" "$DB_FILE"
-    if [ -d "$temp_dir/firewallfalcon/ssl" ]; then
-        cp -r "$temp_dir/firewallfalcon/ssl" "$DB_DIR/"
+    if [ -d "$temp_dir/skylartech/ssl" ]; then
+        cp -r "$temp_dir/skylartech/ssl" "$DB_DIR/"
     fi
-    if [ -d "$temp_dir/firewallfalcon/dnstt" ]; then
-        cp -r "$temp_dir/firewallfalcon/dnstt" "$DB_DIR/"
+    if [ -d "$temp_dir/skylartech/dnstt" ]; then
+        cp -r "$temp_dir/skylartech/dnstt" "$DB_DIR/"
     fi
-    if [ -f "$temp_dir/firewallfalcon/dnstt_info.conf" ]; then
-        cp "$temp_dir/firewallfalcon/dnstt_info.conf" "$DB_DIR/"
+    if [ -f "$temp_dir/skylartech/dnstt_info.conf" ]; then
+        cp "$temp_dir/skylartech/dnstt_info.conf" "$DB_DIR/"
     fi
-    if [ -f "$temp_dir/firewallfalcon/falconproxy_config.conf" ]; then
-        cp "$temp_dir/firewallfalcon/falconproxy_config.conf" "$DB_DIR/"
+    if [ -f "$temp_dir/skylartech/falconproxy_config.conf" ]; then
+        cp "$temp_dir/skylartech/falconproxy_config.conf" "$DB_DIR/"
     fi
     
     echo -e "${C_BLUE}⚙️ Re-synchronizing system accounts with the restored database...${C_RESET}"
-    ensure_firewallfalcon_system_group
+    ensure_skylartech_system_group
     
     while IFS=: read -r user pass expiry limit bandwidth_gb marker hwid strict app; do
         [[ -z "$user" || "$user" == \#* ]] && continue
@@ -2839,7 +2839,7 @@ _enable_banner_in_sshd_config() {
     disable_dynamic_ssh_banner_system
     sed -i.bak -E 's/^( *Banner *).*/#\1/' /etc/ssh/sshd_config
     if ! grep -q -E "^Banner $SSH_BANNER_FILE" /etc/ssh/sshd_config; then
-        echo -e "\n# FirewallFalcon SSH Banner\nBanner $SSH_BANNER_FILE" >> /etc/ssh/sshd_config
+        echo -e "\n# Skylartech SSH Banner\nBanner $SSH_BANNER_FILE" >> /etc/ssh/sshd_config
     fi
     echo -e "${C_GREEN}✅ sshd_config updated.${C_RESET}"
 }
@@ -2932,15 +2932,15 @@ preview_dynamic_ssh_banner() {
     fi
 
     echo -e "\n${C_CYAN}--- Dynamic Banner Preview for user '$u' ---${C_RESET}\n"
-    if [[ -f "/etc/firewallfalcon/banners/${u}.txt" ]]; then
-        cat "/etc/firewallfalcon/banners/${u}.txt"
+    if [[ -f "/etc/skylartech/banners/${u}.txt" ]]; then
+        cat "/etc/skylartech/banners/${u}.txt"
     else
         echo -e "${C_RED}Banner file not generated yet. Waiting up to 10s for the worker...${C_RESET}"
         sleep 5
-        if ! cat "/etc/firewallfalcon/banners/${u}.txt" 2>/dev/null; then
+        if ! cat "/etc/skylartech/banners/${u}.txt" 2>/dev/null; then
             echo -e "\n${C_RED}Still not generated. Here are the last limiter logs:${C_RESET}"
             echo -e "----------------------------------------------------------------------"
-            journalctl -u firewallfalcon-limiter -n 15 --no-pager
+            journalctl -u skylartech-limiter -n 15 --no-pager
             echo -e "----------------------------------------------------------------------"
         fi
     fi
@@ -3038,7 +3038,7 @@ EOF
     echo -e "\n${C_GREEN}📝 Creating udpgw systemd service file...${C_RESET}"
     cat > "$UDPGW_SERVICE_FILE" <<EOF
 [Unit]
-Description=FirewallFalcon UDPGW Backend
+Description=Skylartech UDPGW Backend
 After=network.target
 
 [Service]
@@ -3055,7 +3055,7 @@ EOF
     echo -e "\n${C_GREEN}📝 Creating systemd service file...${C_RESET}"
     cat > "$UDP_CUSTOM_SERVICE_FILE" <<EOF
 [Unit]
-Description=UDP Custom by FirewallFalcon
+Description=UDP Custom by Skylartech
 After=network.target
 
 [Service]
@@ -3251,11 +3251,11 @@ detect_preferred_host() {
 }
 
 backup_edge_configs() {
-    if [ -f "$NGINX_CONFIG_FILE" ] && [ ! -f "${NGINX_CONFIG_FILE}.bak.firewallfalcon" ]; then
-        cp "$NGINX_CONFIG_FILE" "${NGINX_CONFIG_FILE}.bak.firewallfalcon" 2>/dev/null
+    if [ -f "$NGINX_CONFIG_FILE" ] && [ ! -f "${NGINX_CONFIG_FILE}.bak.skylartech" ]; then
+        cp "$NGINX_CONFIG_FILE" "${NGINX_CONFIG_FILE}.bak.skylartech" 2>/dev/null
     fi
-    if [ -f "$HAPROXY_CONFIG" ] && [ ! -f "${HAPROXY_CONFIG}.bak.firewallfalcon" ]; then
-        cp "$HAPROXY_CONFIG" "${HAPROXY_CONFIG}.bak.firewallfalcon" 2>/dev/null
+    if [ -f "$HAPROXY_CONFIG" ] && [ ! -f "${HAPROXY_CONFIG}.bak.skylartech" ]; then
+        cp "$HAPROXY_CONFIG" "${HAPROXY_CONFIG}.bak.skylartech" 2>/dev/null
     fi
 }
 
@@ -3389,7 +3389,7 @@ select_edge_certificate() {
 
     preferred_host=$(detect_preferred_host)
     if [[ -z "$preferred_host" ]]; then
-        preferred_host="firewallfalcon.local"
+        preferred_host="skylartech.local"
     fi
 
     if [ -s "$SSL_CERT_FILE" ] && [ -s "$SSL_CERT_CHAIN_FILE" ] && [ -s "$SSL_CERT_KEY_FILE" ]; then
@@ -4490,8 +4490,8 @@ _hwid_flush_drops() {
 write_hwid_enforcer() {
     cat > "$HWID_ENFORCER_SCRIPT" <<'HWIDEOF'
 #!/bin/bash
-# FirewallFalcon HWID enforcer version 2026-06-26.1
-# FirewallFalcon HWID Lock Enforcer (best-effort, reactive).
+# Skylartech HWID enforcer version 2026-06-26.1
+# Skylartech HWID Lock Enforcer (best-effort, reactive).
 # Reads username|hwid|strict|password from the allowed DB and watches the VPN
 # journals. The hwid column may be a comma-separated list of allowed devices; a
 # connection is OK if its device id matches ANY entry. On a strict mismatch it
@@ -4499,9 +4499,9 @@ write_hwid_enforcer() {
 # cleanly removed later).
 # Force a UTF-8 locale so grep -P (PCRE) is always available.
 export LC_ALL=C.UTF-8 LANG=C.UTF-8
-HWID_DB="/etc/firewallfalcon/hwid_allowed.db"
-LOG_FILE="/var/log/firewallfalcon_hwid.log"
-KICK_LOG="/var/log/firewallfalcon_hwid.log"
+HWID_DB="/etc/skylartech/hwid_allowed.db"
+LOG_FILE="/var/log/skylartech_hwid.log"
+KICK_LOG="/var/log/skylartech_hwid.log"
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"; }
 
@@ -4591,7 +4591,7 @@ enable_hwid_lock() {
     write_hwid_enforcer
     cat > "$HWID_ENFORCER_SERVICE" <<EOF
 [Unit]
-Description=FirewallFalcon HWID Lock Enforcer
+Description=Skylartech HWID Lock Enforcer
 After=network.target
 
 [Service]
@@ -4605,20 +4605,20 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
     systemctl daemon-reload
-    systemctl enable firewallfalcon-hwid-enforcer 2>/dev/null
-    systemctl restart firewallfalcon-hwid-enforcer 2>/dev/null
+    systemctl enable skylartech-hwid-enforcer 2>/dev/null
+    systemctl restart skylartech-hwid-enforcer 2>/dev/null
     echo "on" > "$HWID_STATE_FILE"
-    if systemctl is-active --quiet firewallfalcon-hwid-enforcer; then
+    if systemctl is-active --quiet skylartech-hwid-enforcer; then
         echo -e "\n${C_GREEN}✅ HWID Lock enforcement ENABLED.${C_RESET}"
         echo -e "${C_DIM}Only users with an HWID + strict flag are enforced; others stay multi-device.${C_RESET}"
     else
-        echo -e "\n${C_RED}❌ Enforcer failed to start. Check: journalctl -u firewallfalcon-hwid-enforcer${C_RESET}"
+        echo -e "\n${C_RED}❌ Enforcer failed to start. Check: journalctl -u skylartech-hwid-enforcer${C_RESET}"
     fi
 }
 
 disable_hwid_lock() {
-    systemctl stop firewallfalcon-hwid-enforcer 2>/dev/null
-    systemctl disable firewallfalcon-hwid-enforcer 2>/dev/null
+    systemctl stop skylartech-hwid-enforcer 2>/dev/null
+    systemctl disable skylartech-hwid-enforcer 2>/dev/null
     rm -f "$HWID_ENFORCER_SERVICE" "$HWID_ENFORCER_SCRIPT"
     systemctl daemon-reload 2>/dev/null
     _hwid_flush_drops
@@ -4627,7 +4627,7 @@ disable_hwid_lock() {
 }
 
 hwid_lock_status() {
-    if systemctl is-active --quiet firewallfalcon-hwid-enforcer 2>/dev/null; then
+    if systemctl is-active --quiet skylartech-hwid-enforcer 2>/dev/null; then
         echo -e "  ${C_GREEN}● Enabled${C_RESET} ${C_DIM}(watching udp-custom + zivpn)${C_RESET}"
     else
         echo -e "  ${C_RED}● Disabled${C_RESET}"
@@ -4697,7 +4697,7 @@ purge_nginx() {
     rm -f "${NGINX_CONFIG_FILE}.bak"
     rm -f "${NGINX_CONFIG_FILE}.bak.certbot"
     rm -f "${NGINX_CONFIG_FILE}.bak.selfsigned"
-    rm -f "${NGINX_CONFIG_FILE}.bak.firewallfalcon"
+    rm -f "${NGINX_CONFIG_FILE}.bak.skylartech"
     rm -f "$NGINX_PORTS_FILE"
     if [[ "$mode" != "silent" ]]; then
         echo -e "\n${C_GREEN}✅ Internal Nginx proxy purged. Shared Skylartech certificates were kept.${C_RESET}"
@@ -5251,7 +5251,7 @@ protocol_menu() {
         printf "     ${C_CHOICE}[11]${C_RESET} %-45s %s\n" "🌐 Install/Manage Internal Nginx (8880/8443)" "$nginx_status"
         printf "     ${C_CHOICE}[14]${C_RESET} %-45s %s\n" "🛡️ Install ZiVPN (UDP 5667)" "$zivpn_status"
         printf "     ${C_CHOICE}[15]${C_RESET} %-45s\n" "🗑️ Uninstall ZiVPN"
-        local hwid_status; if systemctl is-active --quiet firewallfalcon-hwid-enforcer 2>/dev/null; then hwid_status="${C_STATUS_A}(On)${C_RESET}"; else hwid_status="${C_STATUS_I}(Off)${C_RESET}"; fi
+        local hwid_status; if systemctl is-active --quiet skylartech-hwid-enforcer 2>/dev/null; then hwid_status="${C_STATUS_A}(On)${C_RESET}"; else hwid_status="${C_STATUS_I}(Off)${C_RESET}"; fi
         printf "     ${C_CHOICE}[16]${C_RESET} %-45s %s\n" "🔒 HWID Lock Enforcement (udp-custom + ZiVPN)" "$hwid_status"
         
         echo -e "     ${C_ACCENT}--- 💻 MANAGEMENT PANELS ---${C_RESET}"
@@ -5301,7 +5301,7 @@ uninstall_script() {
     local -a removable_users=()
     local remove_users_confirm
     local remove_users_on_uninstall=false
-    mapfile -t removable_users < <(get_firewallfalcon_known_users)
+    mapfile -t removable_users < <(get_skylartech_known_users)
     if [[ ${#removable_users[@]} -gt 0 ]]; then
         echo -e "\n${C_YELLOW}Skylartech SSH users detected on this VPS:${C_RESET} ${removable_users[*]}"
         read -p "👉 Do you also want to permanently delete these SSH users before uninstalling? (y/n): " remove_users_confirm
@@ -5314,18 +5314,18 @@ uninstall_script() {
     
     if [[ "$remove_users_on_uninstall" == "true" ]]; then
         echo -e "\n${C_BLUE}🗑️ Removing Skylartech SSH users before uninstall...${C_RESET}"
-        delete_firewallfalcon_user_accounts "${removable_users[@]}"
+        delete_skylartech_user_accounts "${removable_users[@]}"
     fi
     
     echo -e "\n${C_BLUE}🗑️ Removing active limiter service...${C_RESET}"
-    systemctl stop firewallfalcon-limiter &>/dev/null
-    systemctl disable firewallfalcon-limiter &>/dev/null
+    systemctl stop skylartech-limiter &>/dev/null
+    systemctl disable skylartech-limiter &>/dev/null
     rm -f "$LIMITER_SERVICE"
     rm -f "$LIMITER_SCRIPT"
     
     echo -e "\n${C_BLUE}🗑️ Removing bandwidth monitoring service...${C_RESET}"
-    systemctl stop firewallfalcon-bandwidth &>/dev/null
-    systemctl disable firewallfalcon-bandwidth &>/dev/null
+    systemctl stop skylartech-bandwidth &>/dev/null
+    systemctl disable skylartech-bandwidth &>/dev/null
     rm -f "$BANDWIDTH_SERVICE"
     rm -f "$BANDWIDTH_SCRIPT"
     rm -rf "$LEGACY_BANDWIDTH_DIR"
@@ -5346,8 +5346,8 @@ uninstall_script() {
     uninstall_falcon_proxy
     uninstall_zivpn
     echo -e "\n${C_BLUE}🗑️ Removing HWID lock enforcer...${C_RESET}"
-    systemctl stop firewallfalcon-hwid-enforcer &>/dev/null
-    systemctl disable firewallfalcon-hwid-enforcer &>/dev/null
+    systemctl stop skylartech-hwid-enforcer &>/dev/null
+    systemctl disable skylartech-hwid-enforcer &>/dev/null
     rm -f "$HWID_ENFORCER_SERVICE" "$HWID_ENFORCER_SCRIPT"
     _hwid_flush_drops
     
@@ -5476,7 +5476,7 @@ create_trial_account() {
     expiry_epoch=$(date -d "+${duration_hours} hours" +%s)
 
     # Create the system user
-    ensure_firewallfalcon_system_group
+    ensure_skylartech_system_group
     useradd -m -s /usr/sbin/nologin "$username"
     usermod -aG "$FF_USERS_GROUP" "$username" 2>/dev/null
     echo "$username:$password" | chpasswd
@@ -5620,7 +5620,7 @@ bulk_create_users() {
     local expire_date
     expire_date=$(date -d "+$days days" +%Y-%m-%d)
     local bw_display="Unlimited"; [[ "$bandwidth_gb" != "0" ]] && bw_display="${bandwidth_gb} GB"
-    ensure_firewallfalcon_system_group
+    ensure_skylartech_system_group
     
     echo -e "\n${C_BLUE}⚙️ Creating $count users with prefix '${prefix}'...${C_RESET}\n"
     echo -e "${C_YELLOW}================================================================${C_RESET}"
@@ -6083,7 +6083,7 @@ content_filter_menu() {
             5)
                 if [[ ! -f "$CONTENT_FILTER_CONF" ]]; then
                     cat > "$CONTENT_FILTER_CONF" <<-'CONF'
-# FirewallFalcon — Custom domain blocklist
+# Skylartech — Custom domain blocklist
 # One domain or keyword per line.  Lines starting with # are ignored.
 # These run alongside the built-in adult list.
 # Examples:

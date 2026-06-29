@@ -54,7 +54,7 @@ BACKUP="/etc/ssh/sshd_config.backup.$(date +%F-%H%M%S)"
 # Backup current SSH config
 cp "$SSHD_CONFIG" "$BACKUP"
 
-# Download FirewallFalcon SSH config
+# Download Skylartech SSH config
 download_file "$SSHD_CONFIG" "$SSHD_URL"
 chmod 600 "$SSHD_CONFIG"
 
@@ -98,7 +98,7 @@ else
     echo "SSH config applied but service was not restarted automatically."
 fi
 
-# Run FirewallFalcon setup
+# Run Skylartech setup
 bash /usr/local/bin/menu --install-setup
 
 echo "Installation complete!"
