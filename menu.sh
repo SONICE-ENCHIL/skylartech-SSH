@@ -6529,18 +6529,11 @@ main_menu() {
         
         echo
         echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
-        echo -e "   ${C_TITLE}           FILTERS & PROTOCOLS           ${C_RESET}"
+        echo -e "   ${C_TITLE}           🛠️ TOOLS & SETTINGS            ${C_RESET}"
         echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[K\n" "12" "🔌 Protocol Manager"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[K\n" "13" "📈 Traffic Monitor"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-26s\033[K\n" "14" "🔞 Content Filter"
-        
-        echo
-        echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
-        echo -e "   ${C_TITLE}              ⚙️ SYSTEM SETTINGS               ${C_RESET}"
-        echo -e "   ${C_TITLE}─────────────────────────────────────────────────────${C_RESET}"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-16s\033[30G${C_CHOICE}[%2s]${C_RESET}\033[35G%-16s\033[54G${C_CHOICE}[%2s]${C_RESET}\033[59G%-16s\033[K\n" "15" "🎨 SSH Banner" "18" "💾 Backup Users" "20" "🧹 Clean Expired"
-        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-16s\033[30G${C_CHOICE}[%2s]${C_RESET}\033[35G%-16s\033[54G${C_CHOICE}[%2s]${C_RESET}\033[59G%-16s\033[K\n" "16" "🔄 Auto-Reboot" "19" "📥 Restore Users" "21" "🔥 NAT Forwarding"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-18s\033[32G${C_CHOICE}[%2s]${C_RESET}\033[37G%-18s\033[58G${C_CHOICE}[%2s]${C_RESET}\033[63G%-18s\033[K\n" "12" "🔌 Protocol Manager" "13" "📈 Traffic Monitor" "14" "🔞 Content Filter"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-18s\033[32G${C_CHOICE}[%2s]${C_RESET}\033[37G%-18s\033[58G${C_CHOICE}[%2s]${C_RESET}\033[63G%-18s\033[K\n" "15" "🎨 SSH Banner" "16" "🔄 Auto-Reboot Task" "18" "💾 Backup Users"
+        printf "\033[6G${C_CHOICE}[%2s]${C_RESET}\033[11G%-18s\033[32G${C_CHOICE}[%2s]${C_RESET}\033[37G%-18s\033[58G${C_CHOICE}[%2s]${C_RESET}\033[63G%-18s\033[K\n" "19" "📥 Restore Users" "20" "🧹 Cleanup Expired" "21" "🔥 NAT Forwarding"
 
         echo
         echo -e "   ${C_DANGER}─────────────────────────────────────────────────────${C_RESET}"
