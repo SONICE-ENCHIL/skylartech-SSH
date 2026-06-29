@@ -5201,10 +5201,15 @@ refresh_banner_cache() {
     if [[ "$BANNER_CACHE_UP_TIME" =~ ([0-9]+)[[:space:]]*hour ]]; then h=${BASH_REMATCH[1]}; fi
     if [[ "$BANNER_CACHE_UP_TIME" =~ ([0-9]+)[[:space:]]*minute ]]; then m=${BASH_REMATCH[1]}; fi
     local parts=()
-    ((w)) && parts+=("($w)wks")
-    ((d)) && parts+=("($d)days")
+    if ((w || d)); then
+        ((w)) && parts+=("($w)wks")
+        ((d)) && parts+=("($d)days")
+    else
+        ((h)) && parts+=("($h)hr")
+        ((m)) && parts+=("($m)min")
+    fi
     local IFS=,
-    BANNER_CACHE_UP_TIME="${parts[*]}"
+    BANNER_CACHE_UP_TIME="${parts[*]:-0min}"
     BANNER_CACHE_RAM_USAGE=$(free -m | awk '/^Mem:/{if($2>0){printf "%.2f", $3*100/$2}else{print "0.00"}}')
     BANNER_CACHE_CPU_LOAD=$(awk '{print $1}' /proc/loadavg 2>/dev/null)
     if [[ -z "$BANNER_CACHE_IP" ]]; then
