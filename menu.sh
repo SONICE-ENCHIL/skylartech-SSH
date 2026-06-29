@@ -758,6 +758,20 @@ delete_skylartech_user_accounts() {
 
     for username in "${users_to_delete[@]}"; do
         [[ -n "$username" ]] || continue
+        # If this was a ZiVPN account, remove its password from config.json
+        local _zivpn_pass _zivpn_app
+        _zivpn_pass=$(db_get_field "$username" 2)
+        _zivpn_app=$(db_get_field "$username" 9)
+        if [[ "$_zivpn_app" == "zivpn" && -n "$_zivpn_pass" && -f "$ZIVPN_CONFIG_FILE" ]] && command -v jq &>/dev/null; then
+            if jq -e --arg p "$_zivpn_pass" '.auth.config | index($p) != null' "$ZIVPN_CONFIG_FILE" &>/dev/null; then
+                local _tmp; _tmp=$(mktemp) || true
+                if [[ -n "$_tmp" ]] && jq --arg p "$_zivpn_pass" '.auth.config |= map(select(. != $p))' "$ZIVPN_CONFIG_FILE" > "$_tmp" 2>/dev/null; then
+                    mv "$_tmp" "$ZIVPN_CONFIG_FILE"
+                    echo -e " 🔑 ZiVPN password for '${C_YELLOW}$username${C_RESET}' removed from config."
+                fi
+                rm -f "$_tmp" 2>/dev/null
+            fi
+        fi
         # Clear any per-user traffic block before the UID is freed/recycled.
         _ff_unblock_user_traffic "$username"
         killall -u "$username" -9 &>/dev/null
@@ -775,6 +789,9 @@ delete_skylartech_user_accounts() {
         rm -f "$TRIAL_EXPIRY_DIR/${username}.ts"
         rm -f "$ZIVPN_LOCK_DIR/${username}"
     done
+
+    # Reload ZiVPN so any removed passwords take effect immediately.
+    systemctl is-active --quiet zivpn 2>/dev/null && systemctl try-restart zivpn.service 2>/dev/null
 
     if [[ -f "$DB_FILE" ]]; then
         local db_tmp
@@ -1440,6 +1457,12 @@ sync_runtime_components_if_needed() {
     # without the one-time `--install-setup` having been run first.
     ensure_skylartech_dirs
     ensure_skylartech_system_group
+    # Restore user database from uninstall backup if the DB is missing.
+    local _db_backup="/etc/.skylartech-db-backup"
+    if [[ ! -f "$DB_FILE" && -d "$_db_backup" ]]; then
+        cp -a "$_db_backup/." "$DB_DIR/" 2>/dev/null
+        rm -rf "$_db_backup" 2>/dev/null
+    fi
     cleanup_legacy_bandwidth_runtime
     setup_trial_cleanup_script >/dev/null 2>&1
     if [[ ! -f "$LIMITER_SCRIPT" ]] || ! grep -Fqx "$limiter_marker" "$LIMITER_SCRIPT" 2>/dev/null; then
@@ -4468,6 +4491,27 @@ EOF
 }
 EOF
 
+    # Auto-import existing zivpn users from the manager database so users created
+    # before ZiVPN was installed (or re-installed) can authenticate immediately.
+    local _import_count=0
+    if [[ -f "$DB_FILE" ]] && command -v jq &>/dev/null; then
+        while IFS=: read -r _user _pass _rest; do
+            [[ -n "$_user" && -n "$_pass" ]] || continue
+            if jq -e --arg p "$_pass" '.auth.config | index($p) != null' "$ZIVPN_CONFIG_FILE" &>/dev/null; then
+                continue
+            fi
+            local _tmp; _tmp=$(mktemp) || continue
+            if jq --arg p "$_pass" '.auth.config += [$p]' "$ZIVPN_CONFIG_FILE" > "$_tmp" 2>/dev/null; then
+                mv "$_tmp" "$ZIVPN_CONFIG_FILE"
+                ((_import_count++))
+            fi
+            rm -f "$_tmp" 2>/dev/null
+        done < <(awk -F: '$9 == "zivpn" { print $1, $2 }' "$DB_FILE" 2>/dev/null)
+        if [[ $_import_count -gt 0 ]]; then
+            echo -e "${C_GREEN}ℹ️ Imported ${_import_count} existing ZiVPN user(s) from database.${C_RESET}"
+        fi
+    fi
+
     echo -e "\n${C_GREEN}🚀 Starting ZiVPN Service...${C_RESET}"
     systemctl daemon-reload
     systemctl enable zivpn.service
@@ -5467,6 +5511,12 @@ uninstall_script() {
     echo -e "\n${C_BLUE}🗑️ Removing script and configuration files...${C_RESET}"
     rm -rf "$BADVPN_BUILD_DIR"
     rm -rf "$UDP_CUSTOM_DIR"
+    # Back up user database before removal so a reinstall can restore it.
+    if [[ -d "$DB_DIR" ]]; then
+        local _db_backup="/etc/.skylartech-db-backup"
+        rm -rf "$_db_backup" 2>/dev/null
+        cp -a "$DB_DIR" "$_db_backup" 2>/dev/null && echo -e "${C_GREEN}📦 User database backed up to $_db_backup${C_RESET}"
+    fi
     rm -rf "$DB_DIR"
     rm -f "$(command -v menu)"
     
