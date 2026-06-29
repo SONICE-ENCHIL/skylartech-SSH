@@ -103,9 +103,9 @@ DESEC_DOMAIN="manager.firewallfalcon.qzz.io"
 #   FF_REPO_HOST=github FF_REPO_OWNER=youruser FF_REPO_NAME=YourRepo menu
 # (Codeberg uses the Gitea API; GitHub uses the GitHub API. Both expose
 #  .tag_name, so version selection works on either host.)
-FF_REPO_HOST="${FF_REPO_HOST:-codeberg}"
-FF_REPO_OWNER="${FF_REPO_OWNER:-firewallfalcons}"
-FF_REPO_NAME="${FF_REPO_NAME:-FirewallFalcon-Manager}"
+FF_REPO_HOST="${FF_REPO_HOST:-github}"
+FF_REPO_OWNER="${FF_REPO_OWNER:-SONICE-ENCHIL}"
+FF_REPO_NAME="${FF_REPO_NAME:-skylartech-SSH}"
 FF_REPO_BRANCH="${FF_REPO_BRANCH:-main}"
 
 if [[ "$FF_REPO_HOST" == "github" ]]; then

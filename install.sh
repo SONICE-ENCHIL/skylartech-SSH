@@ -12,9 +12,9 @@ echo "Installing FirewallFalcon Manager..."
 # URLs (IPv4 forced to avoid GitHub IPv6 issues)
 # Override these to install from your own fork, e.g.:
 #   FF_REPO_HOST=github FF_REPO_OWNER=youruser FF_REPO_NAME=YourRepo bash install.sh
-FF_REPO_HOST="${FF_REPO_HOST:-codeberg}"
-FF_REPO_OWNER="${FF_REPO_OWNER:-firewallfalcons}"
-FF_REPO_NAME="${FF_REPO_NAME:-FirewallFalcon-Manager}"
+FF_REPO_HOST="${FF_REPO_HOST:-github}"
+FF_REPO_OWNER="${FF_REPO_OWNER:-SONICE-ENCHIL}"
+FF_REPO_NAME="${FF_REPO_NAME:-skylartech-SSH}"
 FF_REPO_BRANCH="${FF_REPO_BRANCH:-main}"
 
 if [[ "$FF_REPO_HOST" == "github" ]]; then
