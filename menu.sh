@@ -4331,6 +4331,20 @@ DNSTT_RECORDS_MANAGED="$DNSTT_RECORDS_MANAGED"
 HAS_IPV6="$HAS_IPV6"
 MTU_VALUE="$mtu_value"
 EOF
+    # Ensure port 53 is excluded from udp-custom so DNSTT can claim it
+    local _excl_file="$DB_DIR/udp_custom_exclude.conf"
+    if [[ -f "$UDP_CUSTOM_SERVICE_FILE" ]]; then
+        if [[ ! -f "$_excl_file" ]]; then
+            printf '%s' "$UDP_CUSTOM_EXCLUDE_DEFAULT" > "$_excl_file"
+        fi
+        local _curr; _curr=$(cat "$_excl_file")
+        if ! echo ",$_curr," | grep -q ',53,'; then
+            _curr="${_curr},53"
+            printf '%s' "$_curr" > "$_excl_file"
+            echo -e "${C_GREEN}✅ Port 53 auto-excluded from udp-custom for DNSTT.${C_RESET}"
+            _reload_udp_custom_service
+        fi
+    fi
     systemctl daemon-reload
     systemctl enable dnstt.service
     systemctl start dnstt.service
@@ -6546,15 +6560,20 @@ NAT_RULES_CONF="$DB_DIR/nat_rules.conf"
 
 _nat_default_rules() {
     cat <<'RULES'
-# RETURN (TCP ports that bypass DNAT)
-RETURN=22
-RETURN=22741
-RETURN=8888
-RETURN=888
-RETURN=80
-RETURN=443
-RETURN=887
-RETURN=49222
+# RETURN rules — these bypass DNAT (format: proto:port)
+# TCP ports (SSH, proxies, panel)
+RETURN=tcp:22
+RETURN=tcp:22741
+RETURN=tcp:8888
+RETURN=tcp:888
+RETURN=tcp:80
+RETURN=tcp:443
+RETURN=tcp:887
+RETURN=tcp:49222
+# UDP ports (DNS, badvpn — so they aren't hijacked by the UDP DNAT)
+RETURN=udp:53
+RETURN=udp:5300
+RETURN=udp:7300
 # DNAT rules  (format: proto:port_or_range:target_port)
 # NOTE: no blanket TCP DNAT — HTTP Custom (SSH/SSL over TCP) must reach its own
 # listeners untouched. Only UDP is forwarded to the relays, so TCP and UDP
@@ -6575,6 +6594,10 @@ _nat_load_rules() {
     # coexist. Safe and idempotent — only rewrites the file when present.
     if grep -q '^DNAT=tcp:1:65535:36712$' "$NAT_RULES_CONF" 2>/dev/null; then
         sed -i '/^DNAT=tcp:1:65535:36712$/d' "$NAT_RULES_CONF" 2>/dev/null
+    fi
+    # Migrate old-format RETURN=<port> (no protocol) to RETURN=tcp:<port>
+    if grep -qP '^RETURN=\d+$' "$NAT_RULES_CONF" 2>/dev/null; then
+        sed -ri 's/^RETURN=([0-9]+)$/RETURN=tcp:\1/' "$NAT_RULES_CONF" 2>/dev/null
     fi
     mapfile -t NAT_RETURN < <(grep '^RETURN=' "$NAT_RULES_CONF" | cut -d= -f2)
     mapfile -t NAT_DNAT < <(grep '^DNAT=' "$NAT_RULES_CONF" | cut -d= -f2)
@@ -6600,9 +6623,11 @@ _nat_apply() {
     iptables -t nat -F PREROUTING
 
     # Apply RETURN rules
-    local port
-    for port in "${NAT_RETURN[@]}"; do
-        iptables -t nat -A PREROUTING -i "$iface" -p tcp --dport "$port" -j RETURN 2>/dev/null || true
+    local rrule rproto rport
+    for rrule in "${NAT_RETURN[@]}"; do
+        IFS=: read -r rproto rport <<< "$rrule"
+        [[ -z "$rport" ]] && rport="$rproto" && rproto="tcp"
+        iptables -t nat -A PREROUTING -i "$iface" -p "$rproto" --dport "$rport" -j RETURN 2>/dev/null || true
     done
 
     # Apply DNAT rules
@@ -6625,8 +6650,11 @@ _nat_preview_commands() {
     echo
     if [[ ${#NAT_RETURN[@]} -gt 0 ]]; then
         echo -e "  ${C_YELLOW}# RETURN rules (ports bypassing DNAT)${C_RESET}"
-        for port in "${NAT_RETURN[@]}"; do
-            echo "  iptables -t nat -A PREROUTING -i $iface -p tcp --dport $port -j RETURN"
+        local rrule rproto rport
+        for rrule in "${NAT_RETURN[@]}"; do
+            IFS=: read -r rproto rport <<< "$rrule"
+            [[ -z "$rport" ]] && rport="$rproto" && rproto="tcp"
+            echo "  iptables -t nat -A PREROUTING -i $iface -p $rproto --dport $rport -j RETURN"
         done
         echo
     fi
@@ -6643,9 +6671,13 @@ _nat_show_rules() {
     local i
 
     if [[ ${#NAT_RETURN[@]} -gt 0 ]]; then
-        echo -e "\n  ${C_ACCENT}===== RETURN (skip DNAT — TCP only) =====${C_RESET}"
+        echo -e "\n  ${C_ACCENT}===== RETURN (bypass DNAT) =====${C_RESET}"
         for i in "${!NAT_RETURN[@]}"; do
-            printf "  ${C_CHOICE}[R%2s]${C_RESET}  %-4s  %-17s  →  %s\n" "$((i+1))" "TCP" "${NAT_RETURN[$i]}" "RETURN"
+            local rrule="${NAT_RETURN[$i]}"
+            local rproto rport
+            IFS=: read -r rproto rport <<< "$rrule"
+            [[ -z "$rport" ]] && rport="$rproto" && rproto="tcp"
+            printf "  ${C_CHOICE}[R%2s]${C_RESET}  %-4s  %-17s  →  %s\n" "$((i+1))" "${rproto^^}" "$rport" "RETURN"
         done
     fi
 
@@ -6667,7 +6699,7 @@ apply_default_nat_rules() {
     _nat_default_rules > "$NAT_RULES_CONF"
     _nat_load_rules
     _nat_apply
-    echo -e "${C_GREEN}✅ Default NAT rules applied (8 RETURN + 3 DNAT).${C_RESET}"
+    echo -e "${C_GREEN}✅ Default NAT rules applied (11 RETURN + 3 DNAT).${C_RESET}"
 }
 
 nat_forward_menu() {
@@ -6679,7 +6711,7 @@ nat_forward_menu() {
 
         echo
         echo -e "   ${C_BOLD}Actions:${C_RESET}\n"
-        printf "     ${C_CHOICE}[ 1]${C_RESET} %-35s\n" "➕ Add RETURN port (TCP)"
+        printf "     ${C_CHOICE}[ 1]${C_RESET} %-35s\n" "➕ Add RETURN port"
         printf "     ${C_CHOICE}[ 2]${C_RESET} %-35s\n" "🗑️  Remove RETURN port"
         printf "     ${C_CHOICE}[ 3]${C_RESET} %-35s\n" "➕ Add DNAT rule"
         printf "     ${C_CHOICE}[ 4]${C_RESET} %-35s\n" "✏️  Edit DNAT rule"
@@ -6695,19 +6727,35 @@ nat_forward_menu() {
         case $choice in
             1)
                 _nat_load_rules
-                read -p "👉 Enter TCP port to exclude from DNAT: " port
-                if [[ -z "$port" || ! "$port" =~ ^[0-9]+$ ]]; then
+                read -p "👉 Protocol (tcp/udp/both) [tcp]: " rproto
+                rproto=${rproto:-tcp}
+                case "$rproto" in
+                    both) ;;
+                    tcp|udp) ;;
+                    *) rproto="tcp" ;;
+                esac
+                read -p "👉 Enter port to exclude from DNAT: " rport
+                if [[ -z "$rport" || ! "$rport" =~ ^[0-9]+$ ]]; then
                     echo -e "\n${C_RED}❌ Invalid port.${C_RESET}"; sleep 1; continue
                 fi
-                if printf '%s\n' "${NAT_RETURN[@]}" | grep -qx "$port"; then
-                    echo -e "\n${C_YELLOW}⚠️ Port $port is already a RETURN exception.${C_RESET}"; sleep 1; continue
+                if [[ "$rproto" == "both" ]]; then
+                    if printf '%s\n' "${NAT_RETURN[@]}" | grep -qx "tcp:$rport"; then
+                        echo -e "\n${C_YELLOW}⚠️ TCP port $rport is already a RETURN exception.${C_RESET}"; sleep 1; continue
+                    fi
+                    if printf '%s\n' "${NAT_RETURN[@]}" | grep -qx "udp:$rport"; then
+                        echo -e "\n${C_YELLOW}⚠️ UDP port $rport is already a RETURN exception.${C_RESET}"; sleep 1; continue
+                    fi
+                    NAT_RETURN+=("tcp:$rport" "udp:$rport")
+                    echo -e "\n${C_GREEN}✅ tcp + udp port $rport added as RETURN exception.${C_RESET}"
+                else
+                    if printf '%s\n' "${NAT_RETURN[@]}" | grep -qx "$rproto:$rport"; then
+                        echo -e "\n${C_YELLOW}⚠️ $rproto port $rport is already a RETURN exception.${C_RESET}"; sleep 1; continue
+                    fi
+                    NAT_RETURN+=("$rproto:$rport")
+                    echo -e "\n${C_GREEN}✅ $rproto port $rport added as RETURN exception.${C_RESET}"
                 fi
-                NAT_RETURN+=("$port")
-                # Sort numerically
-                IFS=$'\n' NAT_RETURN=($(sort -n <<<"${NAT_RETURN[*]}")); unset IFS
                 _nat_save_rules
                 _nat_apply
-                echo -e "\n${C_GREEN}✅ Port $port added as RETURN exception.${C_RESET}"
                 press_enter
                 ;;
             2)
@@ -6716,8 +6764,12 @@ nat_forward_menu() {
                     echo -e "\n${C_YELLOW}⚠️ No RETURN rules to remove.${C_RESET}"; sleep 1; continue
                 fi
                 echo -e "\n${C_BOLD}Select RETURN port to remove:${C_RESET}\n"
+                local rrule rproto rport
                 for i in "${!NAT_RETURN[@]}"; do
-                    printf "  ${C_CHOICE}[%2s]${C_RESET}  TCP  %s\n" "$((i+1))" "${NAT_RETURN[$i]}"
+                    rrule="${NAT_RETURN[$i]}"
+                    IFS=: read -r rproto rport <<< "$rrule"
+                    [[ -z "$rport" ]] && rport="$rproto" && rproto="tcp"
+                    printf "  ${C_CHOICE}[%2s]${C_RESET}  %-4s  %s\n" "$((i+1))" "${rproto^^}" "$rport"
                 done
                 echo -e "\n  ${C_WARN}[ 0]${C_RESET} Cancel"
                 read -p "👉 Choice: " idx
@@ -6807,8 +6859,12 @@ nat_forward_menu() {
                 fi
                 echo -e "\n${C_BOLD}Select rule to delete:${C_RESET}\n"
                 local i idx
+                local rrule rproto rport
                 for i in "${!NAT_RETURN[@]}"; do
-                    printf "  ${C_CHOICE}[R%2s]${C_RESET}  RETURN  TCP  %s\n" "$((i+1))" "${NAT_RETURN[$i]}"
+                    rrule="${NAT_RETURN[$i]}"
+                    IFS=: read -r rproto rport <<< "$rrule"
+                    [[ -z "$rport" ]] && rport="$rproto" && rproto="tcp"
+                    printf "  ${C_CHOICE}[R%2s]${C_RESET}  RETURN  %-4s %s\n" "$((i+1))" "${rproto^^}" "$rport"
                 done
                 for i in "${!NAT_DNAT[@]}"; do
                     local rule="${NAT_DNAT[$i]}"
@@ -6847,7 +6903,7 @@ nat_forward_menu() {
                 press_enter
                 ;;
             6)
-                echo -e "\n${C_YELLOW}⚠️ This will reset to the 8 RETURN + 3 DNAT defaults and wipe custom rules.${C_RESET}"
+                echo -e "\n${C_YELLOW}⚠️ This will reset to the 11 RETURN + 3 DNAT defaults and wipe custom rules.${C_RESET}"
                 read -p "👉 Type 'yes' to confirm: " confirm
                 if [[ "$confirm" != "yes" ]]; then
                     echo -e "\n${C_GREEN}Cancelled.${C_RESET}"; sleep 1; continue
