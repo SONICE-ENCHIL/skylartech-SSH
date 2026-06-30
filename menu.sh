@@ -1048,6 +1048,10 @@ EOF
 # Append ZiVPN utility functions + remaining limiter loop to the limiter script.
 cat >> "$LIMITER_SCRIPT" << 'EOF'
 
+# Default excluded ports for udp-custom (53 = DNS, 5300 = DNS-over-TLS).
+# These ports bypass the tunnel so server-local DNS (or DNSTT) still works.
+UDP_CUSTOM_EXCLUDE_DEFAULT="53,5300"
+
 # --- UDP cutoff for auto-locks (mirrors the menu's manual lock) ---------------
 # A system shadow lock (usermod -L) stops SSH and udp-custom re-auth, but ZiVPN
 # authenticates against a password list in config.json, so an auto-locked user
@@ -3217,6 +3221,13 @@ WantedBy=multi-user.target
 EOF
 
     echo -e "\n${C_GREEN}📝 Creating systemd service file...${C_RESET}"
+    # Write default exclude list if not already present
+    local _excl_file="$DB_DIR/udp_custom_exclude.conf"
+    if [[ ! -f "$_excl_file" ]]; then
+        printf '%s' "$UDP_CUSTOM_EXCLUDE_DEFAULT" > "$_excl_file"
+    fi
+    local _exclude_ports; _exclude_ports=$(cat "$_excl_file" 2>/dev/null)
+    [[ -n "$_exclude_ports" ]] && _exclude_ports="-exclude $_exclude_ports"
     cat > "$UDP_CUSTOM_SERVICE_FILE" <<EOF
 [Unit]
 Description=UDP Custom by Skylartech
@@ -3225,7 +3236,7 @@ After=network.target
 [Service]
 User=root
 Type=simple
-ExecStart=$UDP_CUSTOM_DIR/udp-custom server
+ExecStart=$UDP_CUSTOM_DIR/udp-custom server $_exclude_ports
 WorkingDirectory=$UDP_CUSTOM_DIR/
 Restart=always
 # Near-instant restart so a lock-triggered restart drops a user's live UDP
@@ -3275,6 +3286,103 @@ uninstall_udp_custom() {
     echo -e "${C_GREEN}✅ udp-custom has been uninstalled successfully.${C_RESET}"
 }
 
+# Rewrite the udp-custom service file with the current exclude list, then
+# daemon-reload and restart so the change takes effect immediately.
+_reload_udp_custom_service() {
+    local _excl_file="$DB_DIR/udp_custom_exclude.conf"
+    local _exclude_ports; _exclude_ports=$(cat "$_excl_file" 2>/dev/null)
+    [[ -n "$_exclude_ports" ]] && _exclude_ports="-exclude $_exclude_ports"
+
+    local _tmp; _tmp=$(mktemp) || return 1
+    awk -v excl="$_exclude_ports" '
+        /^ExecStart=/ {
+            print "ExecStart='"$UDP_CUSTOM_DIR"'/udp-custom server " excl
+            next
+        }
+        { print }
+    ' "$UDP_CUSTOM_SERVICE_FILE" > "$_tmp" && mv "$_tmp" "$UDP_CUSTOM_SERVICE_FILE"
+
+    systemctl daemon-reload
+    systemctl restart udp-custom.service 2>/dev/null
+    echo -e "${C_GREEN}✅ udp-custom service reloaded with exclusions: ${_exclude_ports:-"(none)"}${C_RESET}"
+}
+
+# View and edit which ports udp-custom excludes from tunnelling.
+manage_udp_custom_exclude() {
+    local _excl_file="$DB_DIR/udp_custom_exclude.conf"
+    if [[ ! -f "$UDP_CUSTOM_SERVICE_FILE" ]]; then
+        echo -e "\n${C_YELLOW}⚠️ udp-custom is not installed. Install it first.${C_RESET}"
+        return
+    fi
+    while true; do
+        local current; current=$(cat "$_excl_file" 2>/dev/null)
+        clear
+        echo -e "\n   ${C_TITLE}════════════[ ${C_BOLD}🚀 UDP-CUSTOM EXCLUDE PORTS ${C_RESET}${C_TITLE}]════════════${C_RESET}"
+        echo -e "\n   ${C_DIM}Ports in this list are NOT tunnelled — they reach the server directly.${C_RESET}"
+        echo -e "   ${C_DIM}Remove 53 here to let DNS queries flow through the tunnel.${C_RESET}"
+        echo -e "   ${C_DIM}Add 53 back when running DNSTT so it can claim port 53.${C_RESET}"
+        echo -e "\n   ${C_BOLD}Current excludes:${C_RESET} ${C_YELLOW}${current:-"(none)"}${C_RESET}"
+        echo
+        printf "     ${C_CHOICE}[1]${C_RESET} %-35s\n" "➕ Add port to exclude"
+        printf "     ${C_CHOICE}[2]${C_RESET} %-35s\n" "🗑️ Remove port from exclude"
+        printf "     ${C_CHOICE}[3]${C_RESET} %-35s\n" "🔄 Reset to defaults ($UDP_CUSTOM_EXCLUDE_DEFAULT)"
+        printf "     ${C_CHOICE}[4]${C_RESET} %-35s\n" "⚡ Apply & Reload udp-custom"
+        echo -e "   ${C_DIM}~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~${C_RESET}"
+        echo -e "     ${C_WARN}[0]${C_RESET} ↩️ Return"
+        echo
+        read -p "$(echo -e ${C_PROMPT}"👉 Select an option: "${C_RESET})" choice
+
+        case $choice in
+            1)
+                read -p "👉 Port to exclude (e.g. 53): " _port
+                [[ -z "$_port" || ! "$_port" =~ ^[0-9]+$ ]] && { echo -e "${C_RED}❌ Invalid.${C_RESET}"; sleep 1; continue; }
+                if grep -qw "$_port" "$_excl_file" 2>/dev/null; then
+                    echo -e "${C_YELLOW}⚠️ Port $_port is already excluded.${C_RESET}"; sleep 1; continue
+                fi
+                if [[ -n "$current" ]]; then
+                    printf '%s,%s' "$current" "$_port" > "$_excl_file"
+                else
+                    printf '%s' "$_port" > "$_excl_file"
+                fi
+                echo -e "${C_GREEN}✅ Port $_port added to exclude list.${C_RESET}"
+                echo -e "${C_DIM}Use option 4 to apply changes.${C_RESET}"
+                press_enter
+                ;;
+            2)
+                if [[ -z "$current" ]]; then
+                    echo -e "${C_YELLOW}⚠️ No ports to remove.${C_RESET}"; sleep 1; continue
+                fi
+                IFS=',' read -r -a _ports <<< "$current"
+                echo -e "\n${C_BOLD}Select port to remove:${C_RESET}\n"
+                for i in "${!_ports[@]}"; do
+                    printf "  ${C_CHOICE}[%2s]${C_RESET}  %s\n" "$((i+1))" "${_ports[$i]}"
+                done
+                echo -e "\n  ${C_WARN}[0]${C_RESET} Cancel"
+                read -p "👉 Choice: " _idx
+                [[ "$_idx" == "0" ]] && continue
+                [[ ! "$_idx" =~ ^[0-9]+$ || "$_idx" -lt 1 || "$_idx" -gt "${#_ports[@]}" ]] && { echo -e "${C_RED}❌ Invalid.${C_RESET}"; sleep 1; continue; }
+                unset "_ports[$((_idx-1))]"
+                IFS=',' _new="${_ports[*]}"; unset IFS
+                printf '%s' "$_new" > "$_excl_file"
+                echo -e "\n${C_GREEN}✅ Port removed.${C_RESET}"
+                echo -e "${C_DIM}Use option 4 to apply changes.${C_RESET}"
+                press_enter
+                ;;
+            3)
+                printf '%s' "$UDP_CUSTOM_EXCLUDE_DEFAULT" > "$_excl_file"
+                echo -e "\n${C_GREEN}✅ Excludes reset to: $UDP_CUSTOM_EXCLUDE_DEFAULT${C_RESET}"
+                echo -e "${C_DIM}Use option 4 to apply changes.${C_RESET}"
+                press_enter
+                ;;
+            4)
+                _reload_udp_custom_service
+                press_enter
+                ;;
+            0) return ;;
+            *) echo -e "\n${C_RED}❌ Invalid option.${C_RESET}"; sleep 1 ;;
+        esac
+    done
+}
 
 ensure_badvpn_service_is_quiet() {
     if [[ ! -f "$BADVPN_SERVICE_FILE" ]] || grep -q "^StandardOutput=null$" "$BADVPN_SERVICE_FILE" 2>/dev/null; then
@@ -5443,6 +5551,7 @@ protocol_menu() {
         printf "     ${C_CHOICE}[15]${C_RESET} %-45s\n" "🗑️ Uninstall ZiVPN"
         local hwid_status; if systemctl is-active --quiet skylartech-hwid-enforcer 2>/dev/null; then hwid_status="${C_STATUS_A}(On)${C_RESET}"; else hwid_status="${C_STATUS_I}(Off)${C_RESET}"; fi
         printf "     ${C_CHOICE}[16]${C_RESET} %-45s %s\n" "🔒 HWID Lock Enforcement (udp-custom + ZiVPN)" "$hwid_status"
+        printf "     ${C_CHOICE}[17]${C_RESET} %-45s\n" "🚀 Exclude Ports (udp-custom / DNSTT toggle)"
         
         echo -e "     ${C_ACCENT}--- 💻 MANAGEMENT PANELS ---${C_RESET}"
         printf "     ${C_CHOICE}[12]${C_RESET} %-45s %s\n" "💻 Install X-UI / 3X-UI Panel" "$xui_status"
@@ -5465,6 +5574,7 @@ protocol_menu() {
             12) install_panel_menu; press_enter ;; 13) uninstall_xui_panel; press_enter ;;
             14) install_zivpn; press_enter ;; 15) uninstall_zivpn; press_enter ;;
             16) hwid_lock_menu ;;
+            17) manage_udp_custom_exclude; press_enter ;;
             0) return ;;
             *) invalid_option ;;
         esac
